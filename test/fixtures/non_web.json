@@ -1,0 +1,20 @@
+{
+  "token": "pos-token-4444",
+  "cart_token": "cart-pos-4444",
+  "email": "pos@example.com",
+  "phone": "+12065550122",
+  "source_name": "pos",
+  "completed_at": null,
+  "subtotal_price": "75.00",
+  "total_price": "84.00",
+  "shipping_address": {
+    "name": "POS Customer",
+    "address1": "4 Register Rd",
+    "phone": "+12065550122",
+    "city": "Spokane",
+    "province_code": "WA",
+    "country_code": "US",
+    "zip": "99201"
+  },
+  "line_items": [{ "product_id": 444, "quantity": 1 }]
+}

@@ -1,0 +1,20 @@
+{
+  "token": "draft-token-3333",
+  "cart_token": "cart-draft-3333",
+  "email": "draft@example.com",
+  "phone": "+12065550111",
+  "source_name": "shopify_draft_order",
+  "completed_at": null,
+  "subtotal_price": "50.00",
+  "total_price": "56.00",
+  "shipping_address": {
+    "name": "Draft Customer",
+    "address1": "3 Draft Ave",
+    "phone": "+12065550111",
+    "city": "Portland",
+    "province_code": "OR",
+    "country_code": "US",
+    "zip": "97201"
+  },
+  "line_items": [{ "product_id": 333, "quantity": 1 }]
+}

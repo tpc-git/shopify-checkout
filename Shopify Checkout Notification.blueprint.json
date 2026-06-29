@@ -1,0 +1,2554 @@
+{
+    "name": "Shopify Checkout Notification",
+    "flow": [
+        {
+            "id": 2,
+            "module": "gateway:CustomWebHook",
+            "version": 1,
+            "parameters": {
+                "hook": 2516826,
+                "maxResults": 1
+            },
+            "mapper": {},
+            "metadata": {
+                "designer": {
+                    "x": 0,
+                    "y": 0
+                },
+                "restore": {
+                    "parameters": {
+                        "hook": {
+                            "data": {
+                                "editable": "true"
+                            },
+                            "label": "Shopify Checkout Update event webhook"
+                        }
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "hook",
+                        "type": "hook:gateway-webhook",
+                        "label": "Webhook",
+                        "required": true
+                    },
+                    {
+                        "name": "maxResults",
+                        "type": "number",
+                        "label": "Maximum number of results"
+                    }
+                ],
+                "interface": [
+                    {
+                        "name": "token",
+                        "type": "text"
+                    },
+                    {
+                        "name": "cart_token",
+                        "type": "text"
+                    },
+                    {
+                        "name": "email",
+                        "type": "text"
+                    },
+                    {
+                        "name": "gateway",
+                        "type": "text"
+                    },
+                    {
+                        "name": "buyer_accepts_marketing",
+                        "type": "boolean"
+                    },
+                    {
+                        "name": "buyer_accepts_sms_marketing",
+                        "type": "boolean"
+                    },
+                    {
+                        "name": "sms_marketing_phone",
+                        "type": "text"
+                    },
+                    {
+                        "name": "created_at",
+                        "type": "text"
+                    },
+                    {
+                        "name": "updated_at",
+                        "type": "text"
+                    },
+                    {
+                        "name": "landing_site",
+                        "type": "text"
+                    },
+                    {
+                        "name": "note",
+                        "type": "text"
+                    },
+                    {
+                        "name": "note_attributes",
+                        "type": "array"
+                    },
+                    {
+                        "name": "referring_site",
+                        "type": "text"
+                    },
+                    {
+                        "name": "shipping_lines",
+                        "spec": {
+                            "spec": [
+                                {
+                                    "name": "code",
+                                    "type": "text"
+                                },
+                                {
+                                    "name": "price",
+                                    "type": "text"
+                                },
+                                {
+                                    "name": "original_shop_price",
+                                    "type": "text"
+                                },
+                                {
+                                    "name": "original_shop_markup",
+                                    "type": "text"
+                                },
+                                {
+                                    "name": "source",
+                                    "type": "text"
+                                },
+                                {
+                                    "name": "title",
+                                    "type": "text"
+                                },
+                                {
+                                    "name": "presentment_title",
+                                    "type": "text"
+                                },
+                                {
+                                    "name": "phone",
+                                    "type": "text"
+                                },
+                                {
+                                    "name": "tax_lines",
+                                    "type": "array"
+                                },
+                                {
+                                    "name": "custom_tax_lines",
+                                    "type": "text"
+                                },
+                                {
+                                    "name": "markup",
+                                    "type": "text"
+                                },
+                                {
+                                    "name": "carrier_identifier",
+                                    "type": "text"
+                                },
+                                {
+                                    "name": "carrier_service_id",
+                                    "type": "text"
+                                },
+                                {
+                                    "name": "api_client_id",
+                                    "type": "text"
+                                },
+                                {
+                                    "name": "delivery_option_group",
+                                    "spec": [
+                                        {
+                                            "name": "token",
+                                            "type": "text"
+                                        },
+                                        {
+                                            "name": "type",
+                                            "type": "text"
+                                        }
+                                    ],
+                                    "type": "collection"
+                                },
+                                {
+                                    "name": "delivery_expectation_range",
+                                    "type": "text"
+                                },
+                                {
+                                    "name": "delivery_expectation_type",
+                                    "type": "text"
+                                },
+                                {
+                                    "name": "id",
+                                    "type": "text"
+                                },
+                                {
+                                    "name": "requested_fulfillment_service_id",
+                                    "type": "text"
+                                },
+                                {
+                                    "name": "delivery_category",
+                                    "type": "text"
+                                },
+                                {
+                                    "name": "validation_context",
+                                    "type": "text"
+                                },
+                                {
+                                    "name": "applied_discounts",
+                                    "type": "array"
+                                }
+                            ],
+                            "type": "collection"
+                        },
+                        "type": "array"
+                    },
+                    {
+                        "name": "shipping_address",
+                        "spec": [
+                            {
+                                "name": "first_name",
+                                "type": "text"
+                            },
+                            {
+                                "name": "address1",
+                                "type": "text"
+                            },
+                            {
+                                "name": "phone",
+                                "type": "text"
+                            },
+                            {
+                                "name": "city",
+                                "type": "text"
+                            },
+                            {
+                                "name": "zip",
+                                "type": "text"
+                            },
+                            {
+                                "name": "province",
+                                "type": "text"
+                            },
+                            {
+                                "name": "country",
+                                "type": "text"
+                            },
+                            {
+                                "name": "last_name",
+                                "type": "text"
+                            },
+                            {
+                                "name": "address2",
+                                "type": "text"
+                            },
+                            {
+                                "name": "company",
+                                "type": "text"
+                            },
+                            {
+                                "name": "latitude",
+                                "type": "text"
+                            },
+                            {
+                                "name": "longitude",
+                                "type": "text"
+                            },
+                            {
+                                "name": "name",
+                                "type": "text"
+                            },
+                            {
+                                "name": "country_code",
+                                "type": "text"
+                            },
+                            {
+                                "name": "province_code",
+                                "type": "text"
+                            }
+                        ],
+                        "type": "collection"
+                    },
+                    {
+                        "name": "taxes_included",
+                        "type": "boolean"
+                    },
+                    {
+                        "name": "total_weight",
+                        "type": "number"
+                    },
+                    {
+                        "name": "currency",
+                        "type": "text"
+                    },
+                    {
+                        "name": "completed_at",
+                        "type": "text"
+                    },
+                    {
+                        "name": "phone",
+                        "type": "text"
+                    },
+                    {
+                        "name": "customer_locale",
+                        "type": "text"
+                    },
+                    {
+                        "name": "line_items",
+                        "spec": {
+                            "spec": [
+                                {
+                                    "name": "key",
+                                    "type": "text"
+                                },
+                                {
+                                    "name": "fulfillment_service",
+                                    "type": "text"
+                                },
+                                {
+                                    "name": "gift_card",
+                                    "type": "boolean"
+                                },
+                                {
+                                    "name": "grams",
+                                    "type": "number"
+                                },
+                                {
+                                    "name": "presentment_title",
+                                    "type": "text"
+                                },
+                                {
+                                    "name": "presentment_variant_title",
+                                    "type": "text"
+                                },
+                                {
+                                    "name": "product_id",
+                                    "type": "number"
+                                },
+                                {
+                                    "name": "quantity",
+                                    "type": "number"
+                                },
+                                {
+                                    "name": "requires_shipping",
+                                    "type": "boolean"
+                                },
+                                {
+                                    "name": "sku",
+                                    "type": "text"
+                                },
+                                {
+                                    "name": "tax_lines",
+                                    "type": "array"
+                                },
+                                {
+                                    "name": "taxable",
+                                    "type": "boolean"
+                                },
+                                {
+                                    "name": "title",
+                                    "type": "text"
+                                },
+                                {
+                                    "name": "variant_id",
+                                    "type": "number"
+                                },
+                                {
+                                    "name": "variant_title",
+                                    "type": "text"
+                                },
+                                {
+                                    "name": "variant_price",
+                                    "type": "text"
+                                },
+                                {
+                                    "name": "vendor",
+                                    "type": "text"
+                                },
+                                {
+                                    "name": "unit_price_measurement",
+                                    "spec": [
+                                        {
+                                            "name": "measured_type",
+                                            "type": "text"
+                                        },
+                                        {
+                                            "name": "quantity_value",
+                                            "type": "text"
+                                        },
+                                        {
+                                            "name": "quantity_unit",
+                                            "type": "text"
+                                        },
+                                        {
+                                            "name": "reference_value",
+                                            "type": "text"
+                                        },
+                                        {
+                                            "name": "reference_unit",
+                                            "type": "text"
+                                        }
+                                    ],
+                                    "type": "collection"
+                                },
+                                {
+                                    "name": "compare_at_price",
+                                    "type": "text"
+                                },
+                                {
+                                    "name": "line_price",
+                                    "type": "text"
+                                },
+                                {
+                                    "name": "price",
+                                    "type": "text"
+                                },
+                                {
+                                    "name": "parent_relationship",
+                                    "type": "text"
+                                },
+                                {
+                                    "name": "applied_discounts",
+                                    "type": "array"
+                                },
+                                {
+                                    "name": "destination_location_id",
+                                    "type": "text"
+                                },
+                                {
+                                    "name": "user_id",
+                                    "type": "text"
+                                },
+                                {
+                                    "name": "rank",
+                                    "type": "text"
+                                },
+                                {
+                                    "name": "origin_location_id",
+                                    "type": "text"
+                                },
+                                {
+                                    "name": "properties",
+                                    "spec": [],
+                                    "type": "collection"
+                                }
+                            ],
+                            "type": "collection"
+                        },
+                        "type": "array"
+                    },
+                    {
+                        "name": "name",
+                        "type": "text"
+                    },
+                    {
+                        "name": "abandoned_checkout_url",
+                        "type": "text"
+                    },
+                    {
+                        "name": "discount_codes",
+                        "type": "array"
+                    },
+                    {
+                        "name": "tax_lines",
+                        "type": "array"
+                    },
+                    {
+                        "name": "presentment_currency",
+                        "type": "text"
+                    },
+                    {
+                        "name": "source_name",
+                        "type": "text"
+                    },
+                    {
+                        "name": "total_line_items_price",
+                        "type": "text"
+                    },
+                    {
+                        "name": "total_tax",
+                        "type": "text"
+                    },
+                    {
+                        "name": "total_discounts",
+                        "type": "text"
+                    },
+                    {
+                        "name": "subtotal_price",
+                        "type": "text"
+                    },
+                    {
+                        "name": "total_price",
+                        "type": "text"
+                    },
+                    {
+                        "name": "total_duties",
+                        "type": "text"
+                    },
+                    {
+                        "name": "device_id",
+                        "type": "text"
+                    },
+                    {
+                        "name": "user_id",
+                        "type": "text"
+                    },
+                    {
+                        "name": "location_id",
+                        "type": "text"
+                    },
+                    {
+                        "name": "source_identifier",
+                        "type": "text"
+                    },
+                    {
+                        "name": "source_url",
+                        "type": "text"
+                    },
+                    {
+                        "name": "source",
+                        "type": "text"
+                    },
+                    {
+                        "name": "closed_at",
+                        "type": "text"
+                    },
+                    {
+                        "name": "billing_address",
+                        "spec": [
+                            {
+                                "name": "first_name",
+                                "type": "text"
+                            },
+                            {
+                                "name": "address1",
+                                "type": "text"
+                            },
+                            {
+                                "name": "phone",
+                                "type": "text"
+                            },
+                            {
+                                "name": "city",
+                                "type": "text"
+                            },
+                            {
+                                "name": "zip",
+                                "type": "text"
+                            },
+                            {
+                                "name": "province",
+                                "type": "text"
+                            },
+                            {
+                                "name": "country",
+                                "type": "text"
+                            },
+                            {
+                                "name": "last_name",
+                                "type": "text"
+                            },
+                            {
+                                "name": "address2",
+                                "type": "text"
+                            },
+                            {
+                                "name": "company",
+                                "type": "text"
+                            },
+                            {
+                                "name": "latitude",
+                                "type": "text"
+                            },
+                            {
+                                "name": "longitude",
+                                "type": "text"
+                            },
+                            {
+                                "name": "name",
+                                "type": "text"
+                            },
+                            {
+                                "name": "country_code",
+                                "type": "text"
+                            },
+                            {
+                                "name": "province_code",
+                                "type": "text"
+                            }
+                        ],
+                        "type": "collection"
+                    },
+                    {
+                        "name": "customer",
+                        "spec": [
+                            {
+                                "name": "id",
+                                "type": "number"
+                            },
+                            {
+                                "name": "email",
+                                "type": "text"
+                            },
+                            {
+                                "name": "accepts_marketing",
+                                "type": "boolean"
+                            },
+                            {
+                                "name": "created_at",
+                                "type": "text"
+                            },
+                            {
+                                "name": "updated_at",
+                                "type": "text"
+                            },
+                            {
+                                "name": "first_name",
+                                "type": "text"
+                            },
+                            {
+                                "name": "last_name",
+                                "type": "text"
+                            },
+                            {
+                                "name": "orders_count",
+                                "type": "number"
+                            },
+                            {
+                                "name": "state",
+                                "type": "text"
+                            },
+                            {
+                                "name": "total_spent",
+                                "type": "text"
+                            },
+                            {
+                                "name": "last_order_id",
+                                "type": "number"
+                            },
+                            {
+                                "name": "note",
+                                "type": "text"
+                            },
+                            {
+                                "name": "verified_email",
+                                "type": "boolean"
+                            },
+                            {
+                                "name": "multipass_identifier",
+                                "type": "text"
+                            },
+                            {
+                                "name": "tax_exempt",
+                                "type": "boolean"
+                            },
+                            {
+                                "name": "phone",
+                                "type": "text"
+                            },
+                            {
+                                "name": "tags",
+                                "type": "text"
+                            },
+                            {
+                                "name": "currency",
+                                "type": "text"
+                            },
+                            {
+                                "name": "accepts_marketing_updated_at",
+                                "type": "text"
+                            },
+                            {
+                                "name": "admin_graphql_api_id",
+                                "type": "text"
+                            },
+                            {
+                                "name": "default_address",
+                                "spec": [
+                                    {
+                                        "name": "id",
+                                        "type": "text"
+                                    },
+                                    {
+                                        "name": "customer_id",
+                                        "type": "number"
+                                    },
+                                    {
+                                        "name": "first_name",
+                                        "type": "text"
+                                    },
+                                    {
+                                        "name": "last_name",
+                                        "type": "text"
+                                    },
+                                    {
+                                        "name": "company",
+                                        "type": "text"
+                                    },
+                                    {
+                                        "name": "address1",
+                                        "type": "text"
+                                    },
+                                    {
+                                        "name": "address2",
+                                        "type": "text"
+                                    },
+                                    {
+                                        "name": "city",
+                                        "type": "text"
+                                    },
+                                    {
+                                        "name": "province",
+                                        "type": "text"
+                                    },
+                                    {
+                                        "name": "country",
+                                        "type": "text"
+                                    },
+                                    {
+                                        "name": "zip",
+                                        "type": "text"
+                                    },
+                                    {
+                                        "name": "phone",
+                                        "type": "text"
+                                    },
+                                    {
+                                        "name": "name",
+                                        "type": "text"
+                                    },
+                                    {
+                                        "name": "province_code",
+                                        "type": "text"
+                                    },
+                                    {
+                                        "name": "country_code",
+                                        "type": "text"
+                                    },
+                                    {
+                                        "name": "country_name",
+                                        "type": "text"
+                                    },
+                                    {
+                                        "name": "default",
+                                        "type": "boolean"
+                                    }
+                                ],
+                                "type": "collection"
+                            },
+                            {
+                                "name": "last_order_name",
+                                "type": "text"
+                            },
+                            {
+                                "name": "marketing_opt_in_level",
+                                "type": "text"
+                            }
+                        ],
+                        "type": "collection"
+                    }
+                ],
+                "advanced": true
+            }
+        },
+        {
+            "id": 6,
+            "module": "supabase-management:runAQuery",
+            "version": 1,
+            "parameters": {
+                "__IMTCONN__": 9669412
+            },
+            "filter": {
+                "name": "Shipping Address Exists",
+                "conditions": [
+                    [
+                        {
+                            "a": "{{2.shipping_address}}",
+                            "o": "exist"
+                        },
+                        {
+                            "a": "{{2.cart_token}}",
+                            "o": "exist"
+                        },
+                        {
+                            "a": "{{2.shipping_address}}",
+                            "b": "0",
+                            "o": "array:notequal"
+                        }
+                    ]
+                ]
+            },
+            "mapper": {
+                "query": "INSERT INTO checkouts (\n    token,\n    email,\n    phone,\n    name,\n    updated_at\n)\nVALUES (\n  '{{2.token}}',\n  '{{2.email}}',\n  NULLIF(TRIM('{{ifempty(2.phone; 2.shipping_address.phone)}}'), ''),\n  '{{ifempty(2.shipping_address.name; 2.shipping_address.company)}}',\n  now()\n)\nON CONFLICT (token)\nDO UPDATE SET\n    email = EXCLUDED.email,\n    phone = EXCLUDED.phone,\n    name = EXCLUDED.name,\n    updated_at = now();",
+                "projectId": "btjnozabjtqxprvdwduc"
+            },
+            "metadata": {
+                "designer": {
+                    "x": 300,
+                    "y": 0
+                },
+                "restore": {
+                    "expect": {
+                        "projectId": {
+                            "mode": "chose",
+                            "label": "office@tacoma-truckparts.com's Project"
+                        }
+                    },
+                    "parameters": {
+                        "__IMTCONN__": {
+                            "data": {
+                                "scoped": "true",
+                                "connection": "supabase-management"
+                            },
+                            "label": "My Supabase Management connection"
+                        }
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "__IMTCONN__",
+                        "type": "account:supabase-management",
+                        "label": "Connection",
+                        "required": true
+                    }
+                ],
+                "expect": [
+                    {
+                        "name": "projectId",
+                        "type": "select",
+                        "label": "Project ID",
+                        "required": true
+                    },
+                    {
+                        "name": "query",
+                        "type": "text",
+                        "label": "SQL Query",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": 8,
+            "module": "supabase-management:runAQuery",
+            "version": 1,
+            "parameters": {
+                "__IMTCONN__": 9669412
+            },
+            "mapper": {
+                "query": "UPDATE checkouts\nSET\n    phone_received_at = CASE\n        WHEN phone_received_at IS NULL AND phone IS NOT NULL\n        THEN now()\n        ELSE phone_received_at\n    END\nWHERE token = '{{2.token}}'\n  AND phone IS NOT NULL\n  AND phone_received_at IS NULL\nRETURNING token, phone, name;",
+                "projectId": "btjnozabjtqxprvdwduc"
+            },
+            "metadata": {
+                "designer": {
+                    "x": 600,
+                    "y": 0
+                },
+                "restore": {
+                    "expect": {
+                        "projectId": {
+                            "mode": "chose",
+                            "label": "office@tacoma-truckparts.com's Project"
+                        }
+                    },
+                    "parameters": {
+                        "__IMTCONN__": {
+                            "data": {
+                                "scoped": "true",
+                                "connection": "supabase-management"
+                            },
+                            "label": "My Supabase Management connection"
+                        }
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "__IMTCONN__",
+                        "type": "account:supabase-management",
+                        "label": "Connection",
+                        "required": true
+                    }
+                ],
+                "expect": [
+                    {
+                        "name": "projectId",
+                        "type": "select",
+                        "label": "Project ID",
+                        "required": true
+                    },
+                    {
+                        "name": "query",
+                        "type": "text",
+                        "label": "SQL Query",
+                        "required": true
+                    }
+                ]
+            }
+        },
+        {
+            "id": 13,
+            "module": "shopify:searchProducts",
+            "version": 3,
+            "parameters": {
+                "__IMTCONN__": 9669423
+            },
+            "filter": {
+                "name": "Phone exists",
+                "conditions": [
+                    [
+                        {
+                            "a": "{{8.phone}}",
+                            "o": "exist"
+                        }
+                    ]
+                ]
+            },
+            "mapper": {
+                "limit": "2",
+                "query": "{{join(map(2.line_items; \"product_id\"); \" OR \")}}",
+                "images": true,
+                "nImages": "5",
+                "options": true,
+                "sortKey": "created-desc",
+                "nOptions": "5",
+                "variants": true,
+                "nVariants": "5",
+                "queryMode": "advanced",
+                "metafields": true,
+                "nMetafields": "10"
+            },
+            "metadata": {
+                "designer": {
+                    "x": 900,
+                    "y": 0
+                },
+                "restore": {
+                    "expect": {
+                        "sortKey": {
+                            "mode": "chose",
+                            "label": "Creation date (newer to older)"
+                        },
+                        "queryMode": {
+                            "mode": "chose",
+                            "label": "Advanced (manual)"
+                        }
+                    },
+                    "parameters": {
+                        "__IMTCONN__": {
+                            "data": {
+                                "scoped": "true",
+                                "connection": "shopify"
+                            },
+                            "label": "My Shopify connection"
+                        }
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "__IMTCONN__",
+                        "type": "account:shopify,shopify4",
+                        "label": "Connection",
+                        "required": true
+                    }
+                ],
+                "expect": [
+                    {
+                        "name": "queryMode",
+                        "type": "select",
+                        "label": "Query mode",
+                        "validate": {
+                            "enum": [
+                                "simple",
+                                "advanced"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "sortKey",
+                        "type": "select",
+                        "label": "Sort results by",
+                        "required": true,
+                        "validate": {
+                            "enum": [
+                                "created-desc",
+                                "created-asc",
+                                "updated-desc",
+                                "updated-asc"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "type": "number",
+                        "label": "Product limit",
+                        "required": true
+                    },
+                    {
+                        "name": "images",
+                        "type": "boolean",
+                        "label": "Output product images",
+                        "required": true
+                    },
+                    {
+                        "name": "options",
+                        "type": "boolean",
+                        "label": "Output product options",
+                        "required": true
+                    },
+                    {
+                        "name": "variants",
+                        "type": "boolean",
+                        "label": "Output product variants",
+                        "required": true
+                    },
+                    {
+                        "name": "metafields",
+                        "type": "boolean",
+                        "label": "Output product metafields",
+                        "required": true
+                    },
+                    {
+                        "name": "pageLimit",
+                        "type": "uinteger",
+                        "label": "Page size",
+                        "validate": {
+                            "max": 250,
+                            "min": 1
+                        }
+                    },
+                    {
+                        "name": "query",
+                        "type": "text",
+                        "label": "Query"
+                    },
+                    {
+                        "name": "nImages",
+                        "type": "uinteger",
+                        "label": "Images limit",
+                        "required": true,
+                        "validate": {
+                            "max": 250,
+                            "min": 1
+                        }
+                    },
+                    {
+                        "name": "nOptions",
+                        "type": "uinteger",
+                        "label": "Product options limit",
+                        "required": true,
+                        "validate": {
+                            "max": 250,
+                            "min": 1
+                        }
+                    },
+                    {
+                        "name": "nVariants",
+                        "type": "uinteger",
+                        "label": "Product variants limit",
+                        "required": true,
+                        "validate": {
+                            "max": 250,
+                            "min": 1
+                        }
+                    },
+                    {
+                        "name": "nMetafields",
+                        "type": "uinteger",
+                        "label": "Metafields limit",
+                        "required": true,
+                        "validate": {
+                            "max": 250,
+                            "min": 1
+                        }
+                    }
+                ],
+                "interface": [
+                    {
+                        "name": "__IMTLENGTH__",
+                        "type": "uinteger",
+                        "label": "Total number of bundles"
+                    },
+                    {
+                        "name": "__IMTINDEX__",
+                        "type": "uinteger",
+                        "label": "Bundle order position"
+                    },
+                    {
+                        "name": "id",
+                        "type": "text",
+                        "label": "Product ID"
+                    },
+                    {
+                        "name": "legacyResourceId",
+                        "type": "text",
+                        "label": "Legacy resource ID"
+                    },
+                    {
+                        "name": "title",
+                        "type": "text",
+                        "label": "Title"
+                    },
+                    {
+                        "name": "descriptionHtml",
+                        "type": "text",
+                        "label": "Description HTML"
+                    },
+                    {
+                        "name": "templateSuffix",
+                        "type": "text",
+                        "label": "Template suffix"
+                    },
+                    {
+                        "name": "handle",
+                        "type": "text",
+                        "label": "Handle"
+                    },
+                    {
+                        "name": "tags",
+                        "type": "array",
+                        "label": "Tags"
+                    },
+                    {
+                        "name": "status",
+                        "type": "text",
+                        "label": "Status"
+                    },
+                    {
+                        "name": "publishedAt",
+                        "type": "date",
+                        "label": "Published at"
+                    },
+                    {
+                        "name": "productType",
+                        "type": "text",
+                        "label": "Product type"
+                    },
+                    {
+                        "name": "vendor",
+                        "type": "text",
+                        "label": "Vendor"
+                    },
+                    {
+                        "name": "createdAt",
+                        "type": "date",
+                        "label": "Created at"
+                    },
+                    {
+                        "name": "updatedAt",
+                        "type": "date",
+                        "label": "Updated at"
+                    },
+                    {
+                        "name": "category",
+                        "spec": [
+                            {
+                                "name": "id",
+                                "type": "text",
+                                "label": "ID"
+                            },
+                            {
+                                "name": "name",
+                                "type": "text",
+                                "label": "Name"
+                            },
+                            {
+                                "name": "fullName",
+                                "type": "text",
+                                "label": "Full name"
+                            },
+                            {
+                                "name": "level",
+                                "type": "number",
+                                "label": "Level"
+                            },
+                            {
+                                "name": "isLeaf",
+                                "type": "boolean",
+                                "label": "Is leaf"
+                            },
+                            {
+                                "name": "isRoot",
+                                "type": "boolean",
+                                "label": "Is root"
+                            },
+                            {
+                                "name": "isArchived",
+                                "type": "boolean",
+                                "label": "Is archived"
+                            },
+                            {
+                                "name": "parentId",
+                                "type": "text",
+                                "label": "Parent ID"
+                            },
+                            {
+                                "name": "ancestorIds",
+                                "spec": {
+                                    "type": "text"
+                                },
+                                "type": "array",
+                                "label": "Ancestor IDs"
+                            },
+                            {
+                                "name": "childrenIds",
+                                "spec": {
+                                    "type": "text"
+                                },
+                                "type": "array",
+                                "label": "Children IDs"
+                            }
+                        ],
+                        "type": "collection",
+                        "label": "Category"
+                    },
+                    {
+                        "name": "images",
+                        "spec": {
+                            "spec": [
+                                {
+                                    "name": "id",
+                                    "type": "text",
+                                    "label": "Image ID"
+                                },
+                                {
+                                    "name": "altText",
+                                    "type": "text",
+                                    "label": "Alternative text"
+                                },
+                                {
+                                    "name": "originalSrc",
+                                    "type": "url",
+                                    "label": "Original source"
+                                }
+                            ],
+                            "type": "collection"
+                        },
+                        "type": "array",
+                        "label": "Images"
+                    },
+                    {
+                        "name": "options",
+                        "spec": {
+                            "spec": [
+                                {
+                                    "name": "id",
+                                    "type": "text",
+                                    "label": "Option ID"
+                                },
+                                {
+                                    "name": "name",
+                                    "type": "text",
+                                    "label": "Name"
+                                },
+                                {
+                                    "name": "position",
+                                    "type": "integer",
+                                    "label": "Position"
+                                },
+                                {
+                                    "name": "linkedMetafield",
+                                    "spec": [
+                                        {
+                                            "name": "key",
+                                            "type": "text",
+                                            "label": "Key"
+                                        },
+                                        {
+                                            "name": "namespace",
+                                            "type": "text",
+                                            "label": "Namespace"
+                                        }
+                                    ],
+                                    "type": "collection",
+                                    "label": "Linked metafield"
+                                },
+                                {
+                                    "name": "values",
+                                    "type": "array",
+                                    "label": "Values"
+                                }
+                            ],
+                            "type": "collection"
+                        },
+                        "type": "array",
+                        "label": "Options"
+                    },
+                    {
+                        "name": "variants",
+                        "spec": {
+                            "spec": [
+                                {
+                                    "name": "id",
+                                    "type": "text",
+                                    "label": "Variant ID"
+                                },
+                                {
+                                    "name": "sku",
+                                    "type": "text",
+                                    "label": "SKU"
+                                },
+                                {
+                                    "name": "title",
+                                    "type": "text",
+                                    "label": "Title"
+                                },
+                                {
+                                    "name": "displayName",
+                                    "type": "text",
+                                    "label": "Display name"
+                                },
+                                {
+                                    "name": "barcode",
+                                    "type": "text",
+                                    "label": "Barcode"
+                                },
+                                {
+                                    "name": "price",
+                                    "type": "number",
+                                    "label": "Price"
+                                },
+                                {
+                                    "name": "compareAtPrice",
+                                    "type": "number",
+                                    "label": "Compare at price"
+                                },
+                                {
+                                    "name": "inventoryQuantity",
+                                    "type": "integer",
+                                    "label": "Inventory quantity"
+                                },
+                                {
+                                    "name": "inventoryItem",
+                                    "spec": [
+                                        {
+                                            "name": "id",
+                                            "type": "text",
+                                            "label": "Item ID"
+                                        },
+                                        {
+                                            "name": "requiresShipping",
+                                            "type": "boolean",
+                                            "label": "Requires shipping"
+                                        }
+                                    ],
+                                    "type": "collection",
+                                    "label": "Inventory item"
+                                },
+                                {
+                                    "name": "product",
+                                    "spec": [
+                                        {
+                                            "name": "id",
+                                            "type": "text",
+                                            "label": "Product ID"
+                                        }
+                                    ],
+                                    "type": "collection",
+                                    "label": "Product"
+                                }
+                            ],
+                            "type": "collection"
+                        },
+                        "type": "array",
+                        "label": "Variants"
+                    },
+                    {
+                        "name": "metafields",
+                        "spec": [
+                            {
+                                "name": "id",
+                                "type": "text",
+                                "label": "ID"
+                            },
+                            {
+                                "name": "namespace",
+                                "type": "text",
+                                "label": "Namespace"
+                            },
+                            {
+                                "name": "legacyResourceId",
+                                "type": "text",
+                                "label": "Legacy resource ID"
+                            },
+                            {
+                                "name": "key",
+                                "type": "text",
+                                "label": "Key"
+                            },
+                            {
+                                "name": "value",
+                                "type": "text",
+                                "label": "Value"
+                            },
+                            {
+                                "name": "jsonValue",
+                                "type": "any",
+                                "label": "JSON value"
+                            },
+                            {
+                                "name": "type",
+                                "type": "text",
+                                "label": "Type"
+                            }
+                        ],
+                        "type": "array",
+                        "label": "Metafields"
+                    },
+                    {
+                        "name": "mappableMetafields",
+                        "spec": [
+                            {
+                                "name": "ecomposer",
+                                "spec": [
+                                    {
+                                        "name": "countdown",
+                                        "spec": [
+                                            {
+                                                "name": "value",
+                                                "type": "any",
+                                                "label": "Value"
+                                            },
+                                            {
+                                                "name": "id",
+                                                "type": "text",
+                                                "label": "ID"
+                                            },
+                                            {
+                                                "name": "legacyResourceId",
+                                                "type": "text",
+                                                "label": "Legacy resource ID"
+                                            },
+                                            {
+                                                "name": "jsonValue",
+                                                "type": "text",
+                                                "label": "JSON value"
+                                            },
+                                            {
+                                                "name": "type",
+                                                "type": "text",
+                                                "label": "Type"
+                                            }
+                                        ],
+                                        "type": "collection",
+                                        "label": "EComposer product countdown end at"
+                                    },
+                                    {
+                                        "name": "countdown_from",
+                                        "spec": [
+                                            {
+                                                "name": "value",
+                                                "type": "any",
+                                                "label": "Value"
+                                            },
+                                            {
+                                                "name": "id",
+                                                "type": "text",
+                                                "label": "ID"
+                                            },
+                                            {
+                                                "name": "legacyResourceId",
+                                                "type": "text",
+                                                "label": "Legacy resource ID"
+                                            },
+                                            {
+                                                "name": "jsonValue",
+                                                "type": "text",
+                                                "label": "JSON value"
+                                            },
+                                            {
+                                                "name": "type",
+                                                "type": "text",
+                                                "label": "Type"
+                                            }
+                                        ],
+                                        "type": "collection",
+                                        "label": "EComposer product countdown start at"
+                                    }
+                                ],
+                                "type": "collection"
+                            },
+                            {
+                                "name": "reviews",
+                                "spec": [
+                                    {
+                                        "name": "rating",
+                                        "spec": [
+                                            {
+                                                "name": "value",
+                                                "type": "any",
+                                                "label": "Value"
+                                            },
+                                            {
+                                                "name": "id",
+                                                "type": "text",
+                                                "label": "ID"
+                                            },
+                                            {
+                                                "name": "legacyResourceId",
+                                                "type": "text",
+                                                "label": "Legacy resource ID"
+                                            },
+                                            {
+                                                "name": "jsonValue",
+                                                "type": "text",
+                                                "label": "JSON value"
+                                            },
+                                            {
+                                                "name": "type",
+                                                "type": "text",
+                                                "label": "Type"
+                                            }
+                                        ],
+                                        "type": "collection",
+                                        "label": "Product rating"
+                                    },
+                                    {
+                                        "name": "rating_count",
+                                        "spec": [
+                                            {
+                                                "name": "value",
+                                                "type": "any",
+                                                "label": "Value"
+                                            },
+                                            {
+                                                "name": "id",
+                                                "type": "text",
+                                                "label": "ID"
+                                            },
+                                            {
+                                                "name": "legacyResourceId",
+                                                "type": "text",
+                                                "label": "Legacy resource ID"
+                                            },
+                                            {
+                                                "name": "jsonValue",
+                                                "type": "text",
+                                                "label": "JSON value"
+                                            },
+                                            {
+                                                "name": "type",
+                                                "type": "text",
+                                                "label": "Type"
+                                            }
+                                        ],
+                                        "type": "collection",
+                                        "label": "Product rating count"
+                                    }
+                                ],
+                                "type": "collection"
+                            },
+                            {
+                                "name": "mm-google-shopping",
+                                "spec": [
+                                    {
+                                        "name": "custom_product",
+                                        "spec": [
+                                            {
+                                                "name": "value",
+                                                "type": "any",
+                                                "label": "Value"
+                                            },
+                                            {
+                                                "name": "id",
+                                                "type": "text",
+                                                "label": "ID"
+                                            },
+                                            {
+                                                "name": "legacyResourceId",
+                                                "type": "text",
+                                                "label": "Legacy resource ID"
+                                            },
+                                            {
+                                                "name": "jsonValue",
+                                                "type": "text",
+                                                "label": "JSON value"
+                                            },
+                                            {
+                                                "name": "type",
+                                                "type": "text",
+                                                "label": "Type"
+                                            }
+                                        ],
+                                        "type": "collection",
+                                        "label": "Google: Custom Product"
+                                    }
+                                ],
+                                "type": "collection"
+                            },
+                            {
+                                "name": "shopify",
+                                "spec": [
+                                    {
+                                        "name": "color-pattern",
+                                        "spec": [
+                                            {
+                                                "name": "value",
+                                                "type": "any",
+                                                "label": "Value"
+                                            },
+                                            {
+                                                "name": "id",
+                                                "type": "text",
+                                                "label": "ID"
+                                            },
+                                            {
+                                                "name": "legacyResourceId",
+                                                "type": "text",
+                                                "label": "Legacy resource ID"
+                                            },
+                                            {
+                                                "name": "jsonValue",
+                                                "type": "text",
+                                                "label": "JSON value"
+                                            },
+                                            {
+                                                "name": "type",
+                                                "type": "text",
+                                                "label": "Type"
+                                            }
+                                        ],
+                                        "type": "array",
+                                        "label": "Color"
+                                    },
+                                    {
+                                        "name": "item-material",
+                                        "spec": [
+                                            {
+                                                "name": "value",
+                                                "type": "any",
+                                                "label": "Value"
+                                            },
+                                            {
+                                                "name": "id",
+                                                "type": "text",
+                                                "label": "ID"
+                                            },
+                                            {
+                                                "name": "legacyResourceId",
+                                                "type": "text",
+                                                "label": "Legacy resource ID"
+                                            },
+                                            {
+                                                "name": "jsonValue",
+                                                "type": "text",
+                                                "label": "JSON value"
+                                            },
+                                            {
+                                                "name": "type",
+                                                "type": "text",
+                                                "label": "Type"
+                                            }
+                                        ],
+                                        "type": "array",
+                                        "label": "Item material"
+                                    },
+                                    {
+                                        "name": "item-condition",
+                                        "spec": [
+                                            {
+                                                "name": "value",
+                                                "type": "any",
+                                                "label": "Value"
+                                            },
+                                            {
+                                                "name": "id",
+                                                "type": "text",
+                                                "label": "ID"
+                                            },
+                                            {
+                                                "name": "legacyResourceId",
+                                                "type": "text",
+                                                "label": "Legacy resource ID"
+                                            },
+                                            {
+                                                "name": "jsonValue",
+                                                "type": "text",
+                                                "label": "JSON value"
+                                            },
+                                            {
+                                                "name": "type",
+                                                "type": "text",
+                                                "label": "Type"
+                                            }
+                                        ],
+                                        "type": "array",
+                                        "label": "Item condition"
+                                    },
+                                    {
+                                        "name": "manufacturer-type",
+                                        "spec": [
+                                            {
+                                                "name": "value",
+                                                "type": "any",
+                                                "label": "Value"
+                                            },
+                                            {
+                                                "name": "id",
+                                                "type": "text",
+                                                "label": "ID"
+                                            },
+                                            {
+                                                "name": "legacyResourceId",
+                                                "type": "text",
+                                                "label": "Legacy resource ID"
+                                            },
+                                            {
+                                                "name": "jsonValue",
+                                                "type": "text",
+                                                "label": "JSON value"
+                                            },
+                                            {
+                                                "name": "type",
+                                                "type": "text",
+                                                "label": "Type"
+                                            }
+                                        ],
+                                        "type": "array",
+                                        "label": "Manufacturer type"
+                                    },
+                                    {
+                                        "name": "vehicle-frame-body-features",
+                                        "spec": [
+                                            {
+                                                "name": "value",
+                                                "type": "any",
+                                                "label": "Value"
+                                            },
+                                            {
+                                                "name": "id",
+                                                "type": "text",
+                                                "label": "ID"
+                                            },
+                                            {
+                                                "name": "legacyResourceId",
+                                                "type": "text",
+                                                "label": "Legacy resource ID"
+                                            },
+                                            {
+                                                "name": "jsonValue",
+                                                "type": "text",
+                                                "label": "JSON value"
+                                            },
+                                            {
+                                                "name": "type",
+                                                "type": "text",
+                                                "label": "Type"
+                                            }
+                                        ],
+                                        "type": "array",
+                                        "label": "Vehicle frame/body features"
+                                    },
+                                    {
+                                        "name": "vehicle-type",
+                                        "spec": [
+                                            {
+                                                "name": "value",
+                                                "type": "any",
+                                                "label": "Value"
+                                            },
+                                            {
+                                                "name": "id",
+                                                "type": "text",
+                                                "label": "ID"
+                                            },
+                                            {
+                                                "name": "legacyResourceId",
+                                                "type": "text",
+                                                "label": "Legacy resource ID"
+                                            },
+                                            {
+                                                "name": "jsonValue",
+                                                "type": "text",
+                                                "label": "JSON value"
+                                            },
+                                            {
+                                                "name": "type",
+                                                "type": "text",
+                                                "label": "Type"
+                                            }
+                                        ],
+                                        "type": "array",
+                                        "label": "Vehicle type"
+                                    },
+                                    {
+                                        "name": "vehicle-application-area",
+                                        "spec": [
+                                            {
+                                                "name": "value",
+                                                "type": "any",
+                                                "label": "Value"
+                                            },
+                                            {
+                                                "name": "id",
+                                                "type": "text",
+                                                "label": "ID"
+                                            },
+                                            {
+                                                "name": "legacyResourceId",
+                                                "type": "text",
+                                                "label": "Legacy resource ID"
+                                            },
+                                            {
+                                                "name": "jsonValue",
+                                                "type": "text",
+                                                "label": "JSON value"
+                                            },
+                                            {
+                                                "name": "type",
+                                                "type": "text",
+                                                "label": "Type"
+                                            }
+                                        ],
+                                        "type": "array",
+                                        "label": "Vehicle application area"
+                                    }
+                                ],
+                                "type": "collection"
+                            },
+                            {
+                                "name": "shopify--discovery--product_search_boost",
+                                "spec": [
+                                    {
+                                        "name": "queries",
+                                        "spec": [
+                                            {
+                                                "name": "value",
+                                                "type": "any",
+                                                "label": "Value"
+                                            },
+                                            {
+                                                "name": "id",
+                                                "type": "text",
+                                                "label": "ID"
+                                            },
+                                            {
+                                                "name": "legacyResourceId",
+                                                "type": "text",
+                                                "label": "Legacy resource ID"
+                                            },
+                                            {
+                                                "name": "jsonValue",
+                                                "type": "text",
+                                                "label": "JSON value"
+                                            },
+                                            {
+                                                "name": "type",
+                                                "type": "text",
+                                                "label": "Type"
+                                            }
+                                        ],
+                                        "type": "array",
+                                        "label": "Search product boosts"
+                                    }
+                                ],
+                                "type": "collection"
+                            },
+                            {
+                                "name": "shopify--discovery--product_recommendation",
+                                "spec": [
+                                    {
+                                        "name": "related_products",
+                                        "spec": [
+                                            {
+                                                "name": "value",
+                                                "type": "any",
+                                                "label": "Value"
+                                            },
+                                            {
+                                                "name": "id",
+                                                "type": "text",
+                                                "label": "ID"
+                                            },
+                                            {
+                                                "name": "legacyResourceId",
+                                                "type": "text",
+                                                "label": "Legacy resource ID"
+                                            },
+                                            {
+                                                "name": "jsonValue",
+                                                "type": "text",
+                                                "label": "JSON value"
+                                            },
+                                            {
+                                                "name": "type",
+                                                "type": "text",
+                                                "label": "Type"
+                                            }
+                                        ],
+                                        "type": "array",
+                                        "label": "Related products"
+                                    },
+                                    {
+                                        "name": "related_products_display",
+                                        "spec": [
+                                            {
+                                                "name": "value",
+                                                "type": "any",
+                                                "label": "Value"
+                                            },
+                                            {
+                                                "name": "id",
+                                                "type": "text",
+                                                "label": "ID"
+                                            },
+                                            {
+                                                "name": "legacyResourceId",
+                                                "type": "text",
+                                                "label": "Legacy resource ID"
+                                            },
+                                            {
+                                                "name": "jsonValue",
+                                                "type": "text",
+                                                "label": "JSON value"
+                                            },
+                                            {
+                                                "name": "type",
+                                                "type": "text",
+                                                "label": "Type"
+                                            }
+                                        ],
+                                        "type": "collection",
+                                        "label": "Related products settings"
+                                    },
+                                    {
+                                        "name": "complementary_products",
+                                        "spec": [
+                                            {
+                                                "name": "value",
+                                                "type": "any",
+                                                "label": "Value"
+                                            },
+                                            {
+                                                "name": "id",
+                                                "type": "text",
+                                                "label": "ID"
+                                            },
+                                            {
+                                                "name": "legacyResourceId",
+                                                "type": "text",
+                                                "label": "Legacy resource ID"
+                                            },
+                                            {
+                                                "name": "jsonValue",
+                                                "type": "text",
+                                                "label": "JSON value"
+                                            },
+                                            {
+                                                "name": "type",
+                                                "type": "text",
+                                                "label": "Type"
+                                            }
+                                        ],
+                                        "type": "array",
+                                        "label": "Complementary products"
+                                    }
+                                ],
+                                "type": "collection"
+                            },
+                            {
+                                "name": "custom",
+                                "spec": [
+                                    {
+                                        "name": "qb_part_number",
+                                        "spec": [
+                                            {
+                                                "name": "value",
+                                                "type": "any",
+                                                "label": "Value"
+                                            },
+                                            {
+                                                "name": "id",
+                                                "type": "text",
+                                                "label": "ID"
+                                            },
+                                            {
+                                                "name": "legacyResourceId",
+                                                "type": "text",
+                                                "label": "Legacy resource ID"
+                                            },
+                                            {
+                                                "name": "jsonValue",
+                                                "type": "text",
+                                                "label": "JSON value"
+                                            },
+                                            {
+                                                "name": "type",
+                                                "type": "text",
+                                                "label": "Type"
+                                            }
+                                        ],
+                                        "type": "collection",
+                                        "label": "QB Part Number"
+                                    },
+                                    {
+                                        "name": "bullet_1",
+                                        "spec": [
+                                            {
+                                                "name": "value",
+                                                "type": "any",
+                                                "label": "Value"
+                                            },
+                                            {
+                                                "name": "id",
+                                                "type": "text",
+                                                "label": "ID"
+                                            },
+                                            {
+                                                "name": "legacyResourceId",
+                                                "type": "text",
+                                                "label": "Legacy resource ID"
+                                            },
+                                            {
+                                                "name": "jsonValue",
+                                                "type": "text",
+                                                "label": "JSON value"
+                                            },
+                                            {
+                                                "name": "type",
+                                                "type": "text",
+                                                "label": "Type"
+                                            }
+                                        ],
+                                        "type": "collection",
+                                        "label": "Bullet 1"
+                                    },
+                                    {
+                                        "name": "bullet_2",
+                                        "spec": [
+                                            {
+                                                "name": "value",
+                                                "type": "any",
+                                                "label": "Value"
+                                            },
+                                            {
+                                                "name": "id",
+                                                "type": "text",
+                                                "label": "ID"
+                                            },
+                                            {
+                                                "name": "legacyResourceId",
+                                                "type": "text",
+                                                "label": "Legacy resource ID"
+                                            },
+                                            {
+                                                "name": "jsonValue",
+                                                "type": "text",
+                                                "label": "JSON value"
+                                            },
+                                            {
+                                                "name": "type",
+                                                "type": "text",
+                                                "label": "Type"
+                                            }
+                                        ],
+                                        "type": "collection",
+                                        "label": "Bullet 2"
+                                    },
+                                    {
+                                        "name": "bullet_3",
+                                        "spec": [
+                                            {
+                                                "name": "value",
+                                                "type": "any",
+                                                "label": "Value"
+                                            },
+                                            {
+                                                "name": "id",
+                                                "type": "text",
+                                                "label": "ID"
+                                            },
+                                            {
+                                                "name": "legacyResourceId",
+                                                "type": "text",
+                                                "label": "Legacy resource ID"
+                                            },
+                                            {
+                                                "name": "jsonValue",
+                                                "type": "text",
+                                                "label": "JSON value"
+                                            },
+                                            {
+                                                "name": "type",
+                                                "type": "text",
+                                                "label": "Type"
+                                            }
+                                        ],
+                                        "type": "collection",
+                                        "label": "Bullet 3"
+                                    },
+                                    {
+                                        "name": "bullet_4",
+                                        "spec": [
+                                            {
+                                                "name": "value",
+                                                "type": "any",
+                                                "label": "Value"
+                                            },
+                                            {
+                                                "name": "id",
+                                                "type": "text",
+                                                "label": "ID"
+                                            },
+                                            {
+                                                "name": "legacyResourceId",
+                                                "type": "text",
+                                                "label": "Legacy resource ID"
+                                            },
+                                            {
+                                                "name": "jsonValue",
+                                                "type": "text",
+                                                "label": "JSON value"
+                                            },
+                                            {
+                                                "name": "type",
+                                                "type": "text",
+                                                "label": "Type"
+                                            }
+                                        ],
+                                        "type": "collection",
+                                        "label": "Bullet 4"
+                                    }
+                                ],
+                                "type": "collection"
+                            }
+                        ],
+                        "type": "collection",
+                        "label": "Mappable metafields"
+                    },
+                    {
+                        "name": "apiQuotaDetails",
+                        "spec": [
+                            {
+                                "name": "requestedQueryCost",
+                                "type": "number",
+                                "label": "Requested query cost"
+                            },
+                            {
+                                "name": "actualQueryCost",
+                                "type": "number",
+                                "label": "Actual query cost"
+                            },
+                            {
+                                "name": "throttleStatus",
+                                "spec": [
+                                    {
+                                        "name": "maximumAvailable",
+                                        "type": "number",
+                                        "label": "Maximum available"
+                                    },
+                                    {
+                                        "name": "currentlyAvailable",
+                                        "type": "number",
+                                        "label": "Currently available"
+                                    },
+                                    {
+                                        "name": "restoreRate",
+                                        "type": "number",
+                                        "label": "Restore rate"
+                                    }
+                                ],
+                                "type": "collection",
+                                "label": "Throttle status"
+                            }
+                        ],
+                        "type": "collection",
+                        "label": "API quota details"
+                    }
+                ]
+            }
+        },
+        {
+            "id": 27,
+            "module": "builtin:BasicAggregator",
+            "version": 1,
+            "parameters": {
+                "feeder": 13
+            },
+            "filter": null,
+            "mapper": {
+                "id": "{{13.id}}",
+                "name": "{{2.name}}",
+                "note": "{{2.note}}",
+                "tags": "{{13.tags}}",
+                "email": "{{2.email}}",
+                "phone": "{{2.phone}}",
+                "title": "{{13.title}}",
+                "token": "{{2.token}}",
+                "handle": "{{13.handle}}",
+                "images": "{{13.images}}",
+                "source": "{{2.source}}",
+                "status": "{{13.status}}",
+                "vendor": "{{13.vendor}}",
+                "gateway": "{{2.gateway}}",
+                "options": "{{13.options}}",
+                "user_id": "{{2.user_id}}",
+                "category": "{{13.category}}",
+                "currency": "{{2.currency}}",
+                "customer": "{{2.customer}}",
+                "variants": "{{13.variants}}",
+                "closed_at": "{{2.closed_at}}",
+                "createdAt": "{{13.createdAt}}",
+                "device_id": "{{2.device_id}}",
+                "tax_lines": "{{2.tax_lines}}",
+                "total_tax": "{{2.total_tax}}",
+                "updatedAt": "{{13.updatedAt}}",
+                "cart_token": "{{2.cart_token}}",
+                "created_at": "{{2.created_at}}",
+                "line_items": "{{2.line_items}}",
+                "metafields": "{{13.metafields}}",
+                "source_url": "{{2.source_url}}",
+                "updated_at": "{{2.updated_at}}",
+                "location_id": "{{2.location_id}}",
+                "productType": "{{13.productType}}",
+                "publishedAt": "{{13.publishedAt}}",
+                "source_name": "{{2.source_name}}",
+                "total_price": "{{2.total_price}}",
+                "__IMTINDEX__": "{{6.`__IMTINDEX__`}}",
+                "completed_at": "{{2.completed_at}}",
+                "landing_site": "{{2.landing_site}}",
+                "total_duties": "{{2.total_duties}}",
+                "total_weight": "{{2.total_weight}}",
+                "__IMTLENGTH__": "{{6.`__IMTLENGTH__`}}",
+                "discount_codes": "{{2.discount_codes}}",
+                "referring_site": "{{2.referring_site}}",
+                "shipping_lines": "{{2.shipping_lines}}",
+                "subtotal_price": "{{2.subtotal_price}}",
+                "taxes_included": "{{2.taxes_included}}",
+                "templateSuffix": "{{13.templateSuffix}}",
+                "apiQuotaDetails": "{{13.apiQuotaDetails}}",
+                "billing_address": "{{2.billing_address}}",
+                "customer_locale": "{{2.customer_locale}}",
+                "descriptionHtml": "{{13.descriptionHtml}}",
+                "note_attributes": "{{2.note_attributes}}",
+                "total_discounts": "{{2.total_discounts}}",
+                "legacyResourceId": "{{13.legacyResourceId}}",
+                "shipping_address": "{{2.shipping_address}}",
+                "source_identifier": "{{2.source_identifier}}",
+                "mappableMetafields": "{{13.mappableMetafields}}",
+                "sms_marketing_phone": "{{2.sms_marketing_phone}}",
+                "presentment_currency": "{{2.presentment_currency}}",
+                "abandoned_checkout_url": "{{2.abandoned_checkout_url}}",
+                "total_line_items_price": "{{2.total_line_items_price}}",
+                "buyer_accepts_marketing": "{{2.buyer_accepts_marketing}}",
+                "buyer_accepts_sms_marketing": "{{2.buyer_accepts_sms_marketing}}"
+            },
+            "metadata": {
+                "designer": {
+                    "x": 1200,
+                    "y": 0
+                },
+                "restore": {
+                    "extra": {
+                        "feeder": {
+                            "label": "Shopify - Search products [13]"
+                        },
+                        "target": {
+                            "label": "Custom"
+                        }
+                    }
+                }
+            }
+        },
+        {
+            "id": 11,
+            "module": "builtin:BasicFeeder",
+            "version": 1,
+            "parameters": {},
+            "mapper": {
+                "array": "{{27.array}}"
+            },
+            "metadata": {
+                "designer": {
+                    "x": 1500,
+                    "y": 0
+                },
+                "restore": {
+                    "expect": {
+                        "array": {
+                            "mode": "edit"
+                        }
+                    }
+                },
+                "expect": [
+                    {
+                        "mode": "edit",
+                        "name": "array",
+                        "spec": [],
+                        "type": "array",
+                        "label": "Array"
+                    }
+                ]
+            }
+        },
+        {
+            "id": 12,
+            "module": "util:TextAggregator",
+            "version": 1,
+            "parameters": {
+                "feeder": 11,
+                "rowSeparator": ""
+            },
+            "mapper": {
+                "value": "[{{11.title}}](https://tacoma-truckparts.com/products/{{11.handle}})\n"
+            },
+            "metadata": {
+                "designer": {
+                    "x": 1800,
+                    "y": 0
+                },
+                "restore": {
+                    "extra": {
+                        "feeder": {
+                            "label": "Iterator [11]"
+                        }
+                    },
+                    "parameters": {
+                        "rowSeparator": {
+                            "label": "Empty"
+                        }
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "rowSeparator",
+                        "type": "select",
+                        "label": "Row separator",
+                        "validate": {
+                            "enum": [
+                                "\n",
+                                "\t",
+                                "other"
+                            ]
+                        }
+                    }
+                ],
+                "expect": [
+                    {
+                        "name": "value",
+                        "type": "text",
+                        "label": "Text"
+                    }
+                ]
+            }
+        },
+        {
+            "id": 29,
+            "module": "util:SetVariable2",
+            "version": 1,
+            "parameters": {},
+            "filter": null,
+            "mapper": {
+                "name": "chat_ids",
+                "scope": "roundtrip",
+                "value": "{{add(emptyarray; 163176601; 5863332767; 8578184134; 6525804997; 487545002)}}"
+            },
+            "metadata": {
+                "designer": {
+                    "x": 2270,
+                    "y": 0
+                },
+                "restore": {
+                    "expect": {
+                        "scope": {
+                            "label": "One cycle"
+                        }
+                    }
+                },
+                "expect": [
+                    {
+                        "name": "name",
+                        "type": "text",
+                        "label": "Variable name",
+                        "required": true
+                    },
+                    {
+                        "name": "scope",
+                        "type": "select",
+                        "label": "Variable lifetime",
+                        "required": true,
+                        "validate": {
+                            "enum": [
+                                "roundtrip",
+                                "execution"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "value",
+                        "type": "any",
+                        "label": "Variable value"
+                    }
+                ],
+                "interface": [
+                    {
+                        "name": "chat_ids",
+                        "type": "any",
+                        "label": "chat_ids"
+                    }
+                ]
+            }
+        },
+        {
+            "id": 30,
+            "module": "builtin:BasicFeeder",
+            "version": 1,
+            "parameters": {},
+            "filter": null,
+            "mapper": {
+                "array": "{{29.chat_ids}}"
+            },
+            "metadata": {
+                "designer": {
+                    "x": 2642,
+                    "y": 1
+                },
+                "restore": {
+                    "expect": {
+                        "array": {
+                            "mode": "edit"
+                        }
+                    }
+                },
+                "expect": [
+                    {
+                        "mode": "edit",
+                        "name": "array",
+                        "spec": [],
+                        "type": "array",
+                        "label": "Array"
+                    }
+                ]
+            }
+        },
+        {
+            "id": 4,
+            "module": "telegram:SendReplyMessage",
+            "version": 1,
+            "parameters": {
+                "__IMTCONN__": 9669436
+            },
+            "mapper": {
+                "text": "‼️ New checkout on tacoma-truckparts.com ‼️\n\nCustomer: {{8.name}}\nPhone: {{8.phone}}\nEmail: {{ifempty(2.email; \"No Email\")}}\nAddress: `{{2.shipping_address.address1}}, {{2.shipping_address.city}}, {{2.shipping_address.province}}, {{2.shipping_address.country_code}}, {{2.shipping_address.zip}}`\n\nTruck Parts (${{2.total_price}}):\n{{12.text}}",
+                "chatId": "{{30.value}}",
+                "parseMode": "Markdown",
+                "replyMarkup": "",
+                "messageThreadId": "",
+                "replyToMessageId": "",
+                "replyMarkupAssembleType": "reply_markup_enter"
+            },
+            "metadata": {
+                "designer": {
+                    "x": 2986,
+                    "y": 1
+                },
+                "restore": {
+                    "expect": {
+                        "parseMode": {
+                            "label": "Markdown"
+                        },
+                        "disableNotification": {
+                            "mode": "chose"
+                        },
+                        "replyMarkupAssembleType": {
+                            "label": "Enter the Reply Markup"
+                        }
+                    },
+                    "parameters": {
+                        "__IMTCONN__": {
+                            "data": {
+                                "scoped": "true",
+                                "connection": "telegram"
+                            },
+                            "label": "My Telegram Bot connection"
+                        }
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "__IMTCONN__",
+                        "type": "account:telegram",
+                        "label": "Connection",
+                        "required": true
+                    }
+                ],
+                "expect": [
+                    {
+                        "name": "chatId",
+                        "type": "text",
+                        "label": "Chat ID",
+                        "required": true
+                    },
+                    {
+                        "name": "text",
+                        "type": "text",
+                        "label": "Text",
+                        "required": true
+                    },
+                    {
+                        "name": "messageThreadId",
+                        "type": "number",
+                        "label": "Message Thread ID"
+                    },
+                    {
+                        "name": "parseMode",
+                        "type": "select",
+                        "label": "Parse Mode",
+                        "validate": {
+                            "enum": [
+                                "Markdown",
+                                "HTML"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "disableNotification",
+                        "type": "boolean",
+                        "label": "Disable Notifications"
+                    },
+                    {
+                        "name": "disableWebPagePreview",
+                        "type": "boolean",
+                        "label": "Disable Link Previews"
+                    },
+                    {
+                        "name": "replyToMessageId",
+                        "type": "number",
+                        "label": "Original Message ID"
+                    },
+                    {
+                        "name": "replyMarkupAssembleType",
+                        "type": "select",
+                        "label": "Enter/Assemble the Reply Markup Field",
+                        "validate": {
+                            "enum": [
+                                "reply_markup_enter",
+                                "reply_markup_assemble"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "replyMarkup",
+                        "type": "text",
+                        "label": "Reply Markup"
+                    }
+                ]
+            }
+        }
+    ],
+    "metadata": {
+        "instant": true,
+        "version": 1,
+        "scenario": {
+            "roundtrips": 1,
+            "maxErrors": 3,
+            "autoCommit": true,
+            "autoCommitTriggerLast": true,
+            "sequential": true,
+            "slots": null,
+            "confidential": false,
+            "dataloss": false,
+            "dlq": false,
+            "freshVariables": false
+        },
+        "designer": {
+            "orphans": []
+        },
+        "zone": "us2.make.com",
+        "notes": []
+    }
+}

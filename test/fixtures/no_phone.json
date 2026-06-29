@@ -1,0 +1,20 @@
+{
+  "token": "no-phone-token-1111",
+  "cart_token": "cart-no-phone-1111",
+  "email": "nophone@example.com",
+  "phone": null,
+  "source_name": "web",
+  "completed_at": null,
+  "subtotal_price": "100.00",
+  "total_price": "112.00",
+  "shipping_address": {
+    "name": "No Phone",
+    "address1": "1 Main St",
+    "phone": null,
+    "city": "Tacoma",
+    "province_code": "WA",
+    "country_code": "US",
+    "zip": "98401"
+  },
+  "line_items": [{ "product_id": 111, "quantity": 1 }]
+}

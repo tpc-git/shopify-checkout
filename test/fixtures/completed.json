@@ -1,0 +1,20 @@
+{
+  "token": "completed-token-2222",
+  "cart_token": "cart-completed-2222",
+  "email": "done@example.com",
+  "phone": "+12065550100",
+  "source_name": "web",
+  "completed_at": "2026-06-25T10:00:00-07:00",
+  "subtotal_price": "200.00",
+  "total_price": "224.00",
+  "shipping_address": {
+    "name": "Completed Customer",
+    "address1": "2 Market St",
+    "phone": "+12065550100",
+    "city": "Seattle",
+    "province_code": "WA",
+    "country_code": "US",
+    "zip": "98101"
+  },
+  "line_items": [{ "product_id": 222, "quantity": 3 }]
+}
