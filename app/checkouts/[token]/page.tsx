@@ -31,9 +31,11 @@ function CopyValue({
     );
   }
 
+  const text = value;
+
   async function copy() {
     try {
-      await navigator.clipboard.writeText(value);
+      await navigator.clipboard.writeText(text);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1500);
     } catch {
@@ -41,7 +43,7 @@ function CopyValue({
     }
   }
 
-  const label = copied ? 'Copied!' : value;
+  const label = copied ? 'Copied!' : text;
   const cls = `bd-copy ${copied ? 'bd-copy-done' : ''} ${className ?? ''}`;
 
   if (multiline) {
