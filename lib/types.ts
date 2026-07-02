@@ -61,11 +61,14 @@ export interface NotificationContext {
   company_name: string | null;
   phone: string | null;
   email: string | null;
+  subtotal: number | null;
   total: number | null;
+  full_address: string | null;
   destination: string | null;
   product_count: number;
   product_summary: ProductSummaryItem[];
   checkout_url: string | null;
+  checkout_token: string;
   after_hours: boolean;
 }
 

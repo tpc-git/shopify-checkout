@@ -74,6 +74,9 @@ function buildProductSummary(
       title: p?.title ?? `Product ${it.product_id}`,
       handle: p?.handle ?? null,
       quantity: it.quantity,
+      sku: p?.sku ?? null,
+      image_url: p?.image_url ?? null,
+      unit_price: p?.unit_price ?? null,
     };
   });
 }
@@ -108,11 +111,14 @@ export async function processCheckout(
       company_name: n.company_name,
       phone: n.phone,
       email: n.email,
+      subtotal: n.subtotal,
       total: n.total,
+      full_address: n.full_address,
       destination: n.destination,
       product_count: n.items.length,
       product_summary: summary,
       checkout_url: n.checkout_url,
+      checkout_token: n.token,
       after_hours: afterHours,
     };
 

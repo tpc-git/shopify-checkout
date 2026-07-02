@@ -1,18 +1,26 @@
 // Notification orchestration: formats messages and dispatches them through the
-// Telegram and QUO services. It only knows HOW to send; the CheckoutProcessor
+// Telegram and Twilio services. It only knows HOW to send; the CheckoutProcessor
 // decides WHETHER and WHEN to send.
 
 import { money } from '@/lib/util';
 import type { AppSettings, NotificationContext } from '@/lib/types';
+import { fetchImageDataUrls, generateCartPng } from '@/lib/cart-image/generate-cart-png';
+import { toCartImageData } from '@/lib/cart-image/types';
+import { uploadCartImage } from '@/lib/cart-image/upload-cart-image';
 import { TelegramService } from './telegram';
-import { QuoService } from './quo';
+import { TwilioService } from './twilio';
 
 const STOREFRONT = () => process.env.SHOPIFY_STOREFRONT_DOMAIN || 'tacoma-truckparts.com';
+
+export type CartPngGenerator = typeof generateCartPng;
+export type CartImageUploader = typeof uploadCartImage;
 
 export class NotificationService {
   constructor(
     private telegram: TelegramService = new TelegramService(),
-    private quo: QuoService = new QuoService()
+    private twilio: TwilioService = new TwilioService(),
+    private generatePng: CartPngGenerator = generateCartPng,
+    private uploadImage: CartImageUploader = uploadCartImage
   ) {}
 
   formatTelegramMessage(ctx: NotificationContext): string {
@@ -25,7 +33,8 @@ export class NotificationService {
     if (ctx.company_name) lines.push(`Company: ${ctx.company_name}`);
     lines.push(`Phone: ${ctx.phone || 'No Phone'}`);
     lines.push(`Email: ${ctx.email || 'No Email'}`);
-    if (ctx.destination) lines.push(`Destination: ${ctx.destination}`);
+    if (ctx.full_address) lines.push(`Address: ${ctx.full_address}`);
+    else if (ctx.destination) lines.push(`Destination: ${ctx.destination}`);
     lines.push('');
 
     const total = ctx.total != null ? ` (${money(ctx.total)})` : '';
@@ -69,12 +78,29 @@ export class NotificationService {
     return results.some((r) => r.ok);
   }
 
-  // Customer SMS via QUO. Returns true on success.
+  // Customer MMS via Twilio (cart image + SMS body). Falls back to SMS-only if image pipeline fails.
   async sendCustomerSms(ctx: NotificationContext, settings: AppSettings): Promise<boolean> {
     if (!settings.customer_sms_enabled) return false;
     if (!ctx.phone) return false;
-    const content = this.renderSms(settings.sms_template, ctx);
-    const result = await this.quo.sendSms(ctx.phone, content);
+    const body = this.renderSms(settings.sms_template, ctx);
+
+    let mediaUrl: string | undefined;
+    try {
+      const imageDataUrls = await fetchImageDataUrls(ctx.product_summary);
+      const cartData = toCartImageData({
+        checkout_token: ctx.checkout_token,
+        subtotal: ctx.subtotal,
+        total: ctx.total,
+        product_summary: ctx.product_summary,
+        imageDataUrls,
+      });
+      const png = await this.generatePng(cartData);
+      mediaUrl = await this.uploadImage(png, ctx.checkout_token);
+    } catch (e) {
+      console.warn('[mms] cart image failed, sending SMS only', e);
+    }
+
+    const result = await this.twilio.sendMms(ctx.phone, body, mediaUrl);
     return result.ok;
   }
 }

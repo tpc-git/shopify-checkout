@@ -2,6 +2,7 @@
 // ignore rules, and Admin API product lookups for the notification message.
 
 import { createHmac, timingSafeEqual } from 'node:crypto';
+import { CART_IMAGE_SHOPIFY_IMAGE_WIDTH } from '@/lib/cart-image/constants';
 import { firstNonEmpty, parseMoney, productIdFromGid, trimToNull } from '@/lib/util';
 import type { CheckoutItem, NormalizedCheckout, ProductSummaryItem, CheckoutItemDetail } from '@/lib/types';
 
@@ -62,7 +63,8 @@ export interface ShopifyCheckoutPayload {
 
 function fullAddress(a: ShopifyAddress | null | undefined): string | null {
   if (!a) return null;
-  const parts = [a.address1, a.city, a.province || a.province_code, a.country_code || a.country, a.zip]
+  const street = [a.address1, a.address2].map((p) => trimToNull(p)).filter(Boolean).join(', ');
+  const parts = [street, a.city, a.province || a.province_code, a.country_code || a.country, a.zip]
     .map((p) => trimToNull(p))
     .filter(Boolean);
   return parts.length ? parts.join(', ') : null;
@@ -256,7 +258,7 @@ export async function fetchProducts(productIds: string[]): Promise<Map<string, P
         id
         title
         handle
-        featuredImage { url }
+        featuredImage { url(transform: { maxWidth: ${CART_IMAGE_SHOPIFY_IMAGE_WIDTH} }) }
         variants(first: 20) { nodes { sku price } }
       }
     }

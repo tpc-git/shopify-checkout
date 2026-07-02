@@ -2,7 +2,7 @@
 
 Production replacement for the Make.com "Shopify Checkout Notification" automation.
 When Shopify sends a `checkouts/update` webhook, this app stores a minimal snapshot
-of the checkout and notifies the team (Telegram) and the customer (QUO SMS) — exactly
+of the checkout and notifies the team (Telegram) and the customer (Twilio MMS) — exactly
 once per checkout, safely under Vercel's parallel execution model.
 
 Built with Next.js 14 (App Router) + TypeScript + Neon Postgres, reusing the
@@ -19,7 +19,8 @@ lib/services/shopify.ts              ->  HMAC verify, normalize, product lookups
 lib/services/business-hours.ts       ->  timezone-aware business-hours logic
 lib/services/notification.ts         ->  message formatting + dispatch
 lib/services/telegram.ts             ->  Telegram Bot API
-lib/services/quo.ts                  ->  QUO (OpenPhone) SMS API
+lib/services/twilio.ts               ->  Twilio SMS/MMS API
+lib/cart-image/*                     ->  cart summary PNG (satori + resvg) for MMS
 lib/db/*                             ->  Neon repositories (checkouts, settings)
 ```
 
@@ -44,11 +45,14 @@ normalize -> hard-ignore rules -> upsert checkout -> upsert items
 ### After-hours handling
 
 If a checkout arrives outside configured business hours:
-- it is flagged `after_hours_notification`,
-- the internal team is still notified immediately (if enabled),
-- the customer SMS is deferred and sent later by the cron endpoint
-  (`/api/cron/send-pending-sms`) once business hours resume — each SMS is
-  claimed atomically via `customer_sms_sent_at` so it is sent exactly once.
+- the internal team is still notified immediately via Telegram,
+- the customer receives an MMS right away (if enabled) with a cart summary image
+  plus the SMS template body. Images are generated server-side, uploaded to
+  Vercel Blob, and attached via Twilio `MediaUrl`. If image generation or upload
+  fails, the app falls back to SMS-only.
+
+During business hours, only Telegram alerts are sent so sales managers can call
+the client.
 
 ## Data model (`migrations/0001_init.sql`)
 
@@ -85,8 +89,9 @@ npm test
   store and a fake notifier.
 - `test/webhook.test.ts` — integration tests for the webhook route (valid/invalid
   HMAC, 400 on bad JSON, always-200 contract, idempotent double-delivery).
-- `test/services.test.ts` — Telegram and QUO services with a mocked `fetch`, plus
-  message/SMS formatting.
+- `test/services.test.ts` — Telegram and Twilio services with a mocked `fetch`, plus
+  message/MMS formatting.
+- `test/cart-image.test.ts` — cart image data shaping and satori render smoke test.
 - `test/fixtures/*.json` — sample Shopify webhook payloads.
 
 ## Environment variables
@@ -101,10 +106,11 @@ npm test
 | `SHOPIFY_ADMIN_ACCESS_TOKEN` | optional | Static Admin token; if set, overrides the client credentials grant |
 | `SHOPIFY_STOREFRONT_DOMAIN` | optional | Public domain for product links (default `tacoma-truckparts.com`) |
 | `TELEGRAM_BOT_TOKEN` | for Telegram | Bot token from @BotFather |
-| `QUO_API_KEY` | for SMS | QUO (OpenPhone) API key (sent as `Authorization`) |
-| `QUO_FROM_NUMBER` | for SMS | Sender number in E.164 (also editable in Settings) |
+| `TWILIO_ACCOUNT_SID` | for MMS | Twilio account SID |
+| `TWILIO_AUTH_TOKEN` | for MMS | Twilio auth token |
+| `TWILIO_FROM_NUMBER` | for MMS | Sender number in E.164 |
+| `BLOB_READ_WRITE_TOKEN` | for MMS | Vercel Blob token for cart image uploads |
 | `APP_URL` | optional | Public base URL of the deployment (reserved for deep links) |
-| `CRON_SECRET` | recommended | Authorizes the Vercel cron endpoint |
 
 \* Either provide `SHOPIFY_API_KEY` + `SHOPIFY_API_SECRET` (preferred) **or** a
 static `SHOPIFY_ADMIN_ACCESS_TOKEN`.
@@ -127,7 +133,7 @@ automatically before expiry (see `getAdminAccessToken()` in
   `SHOPIFY_WEBHOOK_SECRET` is typically identical to `SHOPIFY_API_SECRET`.
 
 Secrets live only in environment variables. Operational, non-secret settings
-(business hours, timezone, Telegram chat IDs, SMS template, toggles) are managed
+(business hours, Telegram chat IDs, SMS template, toggles) are managed
 in the in-app **Settings** page.
 
 ## Deployment (Vercel)
@@ -135,10 +141,7 @@ in the in-app **Settings** page.
 1. Import the repo into Vercel and set the env vars above (all environments).
 2. Run the migration once against Neon (`npm run migrate` locally, or the Neon
    SQL editor).
-3. `vercel.json` registers a cron that calls `/api/cron/send-pending-sms` every
-   15 minutes to flush deferred after-hours SMS. Vercel automatically sends
-   `Authorization: Bearer $CRON_SECRET`.
-4. In Shopify, create a `checkouts/update` webhook pointing to
+3. In Shopify, create a `checkouts/update` webhook pointing to
    `https://<your-app>/api/webhooks/shopify/checkouts` and use the same signing
    secret as `SHOPIFY_WEBHOOK_SECRET`.
 
