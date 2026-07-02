@@ -173,6 +173,15 @@ describe('Shopify Admin token (client credentials grant)', () => {
 
 describe('NotificationService formatting', () => {
   const svc = new NotificationService();
+  const SAVED_APP_URL = process.env.APP_URL;
+
+  beforeEach(() => {
+    process.env.APP_URL = 'https://checkout.example.com';
+  });
+  afterEach(() => {
+    if (SAVED_APP_URL === undefined) delete process.env.APP_URL;
+    else process.env.APP_URL = SAVED_APP_URL;
+  });
 
   it('builds a Telegram message with all required fields', () => {
     const msg = svc.formatTelegramMessage(ctx);
@@ -187,6 +196,12 @@ describe('NotificationService formatting', () => {
     expect(msg).toContain('[Bumper](https://tacoma-truckparts.com/products/bumper)');
     expect(msg).toContain('[Grille Guard](https://tacoma-truckparts.com/products/grille) x2');
     expect(msg).toContain('After-hours');
+    expect(msg).toContain('[Open checkout](https://checkout.example.com/checkouts/abc123token)');
+  });
+
+  it('falls back to Shopify recover URL when APP_URL is unset', () => {
+    delete process.env.APP_URL;
+    const msg = svc.formatTelegramMessage(ctx);
     expect(msg).toContain('[Open checkout](https://tacoma-truckparts.com/recover)');
   });
 

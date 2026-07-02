@@ -2,7 +2,7 @@
 // Telegram and Twilio services. It only knows HOW to send; the CheckoutProcessor
 // decides WHETHER and WHEN to send.
 
-import { money } from '@/lib/util';
+import { appCheckoutUrl, money } from '@/lib/util';
 import type { AppSettings, NotificationContext } from '@/lib/types';
 import { fetchImageDataUrls, generateCartPng } from '@/lib/cart-image/generate-cart-png';
 import { toCartImageData } from '@/lib/cart-image/types';
@@ -22,6 +22,11 @@ export class NotificationService {
     private generatePng: CartPngGenerator = generateCartPng,
     private uploadImage: CartImageUploader = uploadCartImage
   ) {}
+
+  /** App checkout page when APP_URL is set; otherwise Shopify recover URL. */
+  checkoutLink(ctx: NotificationContext): string | null {
+    return appCheckoutUrl(ctx.checkout_token) ?? ctx.checkout_url;
+  }
 
   formatTelegramMessage(ctx: NotificationContext): string {
     const store = STOREFRONT();
@@ -47,9 +52,10 @@ export class NotificationService {
         lines.push(`${p.title}${qty}`);
       }
     }
-    if (ctx.checkout_url) {
+    const checkoutLink = this.checkoutLink(ctx);
+    if (checkoutLink) {
       lines.push('');
-      lines.push(`[Open checkout](${ctx.checkout_url})`);
+      lines.push(`[Open checkout](${checkoutLink})`);
     }
     return lines.join('\n');
   }
@@ -63,7 +69,7 @@ export class NotificationService {
       total: ctx.total != null ? money(ctx.total) : '',
       destination: ctx.destination ?? '',
       product_count: String(ctx.product_count),
-      checkout_url: ctx.checkout_url ?? '',
+      checkout_url: this.checkoutLink(ctx) ?? '',
     };
     return template.replace(/\{\{\s*(\w+)\s*\}\}/g, (_m, key: string) =>
       key in vars ? vars[key] : ''

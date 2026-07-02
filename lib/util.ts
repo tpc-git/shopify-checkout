@@ -89,6 +89,13 @@ export function itemCount(raw: string | null | undefined): number {
   return parseItems(raw).length;
 }
 
+// Public URL for a checkout detail page in this app (Telegram/SMS links).
+export function appCheckoutUrl(token: string): string | null {
+  const base = trimToNull(process.env.APP_URL);
+  if (!base || !token.trim()) return null;
+  return `${base.replace(/\/$/, '')}/checkouts/${encodeURIComponent(token.trim())}`;
+}
+
 // Normalize a phone number to E.164 (best effort). Assumes US/+1 when no country code.
 export function toE164(raw: string): string | null {
   const trimmed = raw.trim();
