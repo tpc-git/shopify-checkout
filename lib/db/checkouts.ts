@@ -215,21 +215,20 @@ export async function listCheckouts(
   const pageSize = Math.min(200, Math.max(1, params.pageSize ?? 25));
   const offset = (page - 1) * pageSize;
 
-  const countRows = (await sql.query(
-    `SELECT COUNT(*)::int AS total FROM checkouts c ${whereSql}`,
-    args
-  )) as { total: number }[];
-  const total = countRows[0]?.total ?? 0;
-
+  // Single query so total and rows come from the same snapshot (two round-trips
+  // through the pooler can land on different replicas and disagree).
   const listArgs = [...args, pageSize, offset];
-  const rows = (await sql.query(
-    `SELECT c.*
+  const raw = (await sql.query(
+    `SELECT c.*, COUNT(*) OVER()::int AS __total
      FROM checkouts c
      ${whereSql}
      ORDER BY ${sortCol} ${dir} NULLS LAST
      LIMIT $${i++} OFFSET $${i++}`,
     listArgs
-  )) as CheckoutRow[];
+  )) as (CheckoutRow & { __total: number })[];
+
+  const total = raw[0]?.__total ?? 0;
+  const rows = raw.map(({ __total: _total, ...row }) => row as CheckoutRow);
 
   return { rows: rows.map(withProductCount), total };
 }

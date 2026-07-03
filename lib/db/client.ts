@@ -7,11 +7,14 @@ let _sql: NeonQueryFunction<false, false> | null = null;
 
 /** Prefer unpooled URL so reads reflect writes immediately (pooler can lag). */
 function databaseUrl(): string {
-  const unpooled = process.env.DATABASE_URL_UNPOOLED?.trim();
+  const unpooled =
+    process.env.DATABASE_URL_UNPOOLED?.trim() ||
+    process.env.POSTGRES_URL_NON_POOLING?.trim();
   if (unpooled) return unpooled;
-  const url = process.env.DATABASE_URL;
-  if (!url) throw new Error('DATABASE_URL is not configured');
-  return url.includes('-pooler.') ? url.replace('-pooler.', '.') : url;
+
+  const pooled = process.env.DATABASE_URL?.trim() || process.env.POSTGRES_URL?.trim();
+  if (!pooled) throw new Error('DATABASE_URL is not configured');
+  return pooled.includes('-pooler.') ? pooled.replace('-pooler.', '.') : pooled;
 }
 
 export function db(): NeonQueryFunction<false, false> {
