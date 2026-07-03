@@ -31,18 +31,25 @@ export class NotificationService {
   formatTelegramMessage(ctx: NotificationContext): string {
     const store = STOREFRONT();
     const lines: string[] = [];
-    lines.push(`\u203c\ufe0f New checkout on ${store} \u203c\ufe0f`);
-    if (ctx.checkout_completed) lines.push('\u2705 Order completed');
-    if (ctx.after_hours) lines.push('\u{1F319} After-hours checkout');
-    lines.push('');
-    lines.push(`Customer: ${ctx.customer_name || 'Unknown'}`);
-    if (ctx.company_name) lines.push(`Company: ${ctx.company_name}`);
-    // Backticks render as monospace in Telegram and copy the value on tap.
-    lines.push(ctx.phone ? `Phone: \`${ctx.phone}\`` : 'Phone: pending');
-    lines.push(`Email: ${ctx.email || 'No Email'}`);
-    if (ctx.full_address) lines.push(`Address: \`${ctx.full_address}\``);
-    else if (ctx.destination) lines.push(`Destination: \`${ctx.destination}\``);
-    lines.push('');
+
+    if (ctx.checkout_completed) {
+      lines.push('\u2705 Order completed');
+      lines.push('');
+      lines.push(`Customer: ${ctx.customer_name || 'Unknown'}`);
+      lines.push('');
+    } else {
+      lines.push(`\u203c\ufe0f New checkout on ${store} \u203c\ufe0f`);
+      if (ctx.after_hours) lines.push('\u{1F319} After-hours checkout');
+      lines.push('');
+      lines.push(`Customer: ${ctx.customer_name || 'Unknown'}`);
+      if (ctx.company_name) lines.push(`Company: ${ctx.company_name}`);
+      // Backticks render as monospace in Telegram and copy the value on tap.
+      lines.push(ctx.phone ? `Phone: \`${ctx.phone}\`` : 'Phone: pending');
+      lines.push(`Email: ${ctx.email || 'No Email'}`);
+      if (ctx.full_address) lines.push(`Address: \`${ctx.full_address}\``);
+      else if (ctx.destination) lines.push(`Destination: \`${ctx.destination}\``);
+      lines.push('');
+    }
 
     const total = ctx.total != null ? ` (${money(ctx.total)})` : '';
     lines.push(`Truck Parts${total} \u2014 ${ctx.product_count} item(s):`);
@@ -54,10 +61,12 @@ export class NotificationService {
         lines.push(`${p.title}${qty}`);
       }
     }
-    const checkoutLink = this.checkoutLink(ctx);
-    if (checkoutLink) {
-      lines.push('');
-      lines.push(`[Open checkout](${checkoutLink})`);
+    if (!ctx.checkout_completed) {
+      const checkoutLink = this.checkoutLink(ctx);
+      if (checkoutLink) {
+        lines.push('');
+        lines.push(`[Open checkout](${checkoutLink})`);
+      }
     }
     return lines.join('\n');
   }

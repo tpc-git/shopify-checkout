@@ -253,10 +253,18 @@ describe('NotificationService formatting', () => {
     expect(msg).not.toContain('Phone: `');
   });
 
-  it('adds the completed badge when the order is finished', () => {
+  it('uses a compact layout when the order is finished', () => {
     expect(svc.formatTelegramMessage(ctx)).not.toContain('\u2705');
     const msg = svc.formatTelegramMessage({ ...ctx, checkout_completed: true });
     expect(msg).toContain('\u2705 Order completed');
+    expect(msg).toContain('Customer: Victor Finayev');
+    expect(msg).toContain('Truck Parts ($5,249.97) \u2014 2 item(s):');
+    expect(msg).not.toContain('New checkout on');
+    expect(msg).not.toContain('Company:');
+    expect(msg).not.toContain('Phone:');
+    expect(msg).not.toContain('Email:');
+    expect(msg).not.toContain('Address:');
+    expect(msg).not.toContain('[Open checkout]');
   });
 
   it('falls back to Shopify recover URL when APP_URL is unset', () => {
