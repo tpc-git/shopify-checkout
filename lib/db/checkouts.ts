@@ -59,12 +59,67 @@ export async function releaseNotification(token: string): Promise<void> {
   `;
 }
 
-export async function markCustomerSmsSent(token: string): Promise<void> {
+// Atomic once-only claim for the customer SMS (mirrors claimNotification).
+// Returns true only for the execution that flips customer_sms_sent_at.
+export async function claimCustomerSms(token: string): Promise<boolean> {
   const sql = db();
-  await sql`
+  const rows = (await sql`
     UPDATE checkouts
     SET customer_sms_sent_at = now()
     WHERE token = ${token} AND customer_sms_sent_at IS NULL
+    RETURNING token
+  `) as { token: string }[];
+  return rows.length > 0;
+}
+
+export async function releaseCustomerSms(token: string): Promise<void> {
+  const sql = db();
+  await sql`
+    UPDATE checkouts
+    SET customer_sms_sent_at = NULL
+    WHERE token = ${token}
+  `;
+}
+
+// Full row snapshot after the upsert: message ref, claim timestamps, and the
+// merged customer fields (phone/name/address survive events that omit them).
+export async function getNotificationState(token: string): Promise<CheckoutRow | null> {
+  const sql = db();
+  const rows = (await sql`SELECT * FROM checkouts WHERE token = ${token}`) as CheckoutRow[];
+  return rows[0] ?? null;
+}
+
+export async function saveTelegramMessageRef(
+  token: string,
+  chatId: string,
+  messageId: number
+): Promise<void> {
+  const sql = db();
+  await sql`
+    UPDATE checkouts
+    SET telegram_chat_id = ${chatId}, telegram_message_id = ${messageId}
+    WHERE token = ${token}
+  `;
+}
+
+// Atomic once-only claim for scheduling the QStash delayed-notification job.
+export async function claimNotifyJob(token: string): Promise<boolean> {
+  const sql = db();
+  const rows = (await sql`
+    UPDATE checkouts
+    SET notify_job_scheduled_at = now()
+    WHERE token = ${token} AND notify_job_scheduled_at IS NULL
+    RETURNING token
+  `) as { token: string }[];
+  return rows.length > 0;
+}
+
+export async function releaseNotifyJob(token: string): Promise<void> {
+  const sql = db();
+  await sql`
+    UPDATE checkouts
+    SET notify_job_scheduled_at = NULL
+    WHERE token = ${token}
   `;
 }
 

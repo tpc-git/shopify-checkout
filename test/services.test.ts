@@ -40,32 +40,77 @@ const ctx: NotificationContext = {
   checkout_url: 'https://tacoma-truckparts.com/recover',
   checkout_token: 'abc123token',
   after_hours: true,
+  checkout_completed: false,
 };
 
 describe('TelegramService (mocked API)', () => {
   let fetchMock: ReturnType<typeof vi.fn>;
   beforeEach(() => {
-    fetchMock = vi.fn(async () => new Response(JSON.stringify({ ok: true }), { status: 200 }));
+    fetchMock = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ ok: true, result: { message_id: 777 } }), { status: 200 })
+    );
     vi.stubGlobal('fetch', fetchMock);
   });
   afterEach(() => vi.unstubAllGlobals());
 
-  it('posts to every chat id with Markdown', async () => {
+  it('posts to the group chat with Markdown and returns the message id', async () => {
     const tg = new TelegramService('test-token');
-    const results = await tg.sendMessage(['111', '222'], 'hello');
-    expect(results.every((r) => r.ok)).toBe(true);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const result = await tg.sendMessage('-1001', 'hello');
+    expect(result.ok).toBe(true);
+    expect(result.messageId).toBe(777);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toContain('/bottest-token/sendMessage');
     const body = JSON.parse((init as RequestInit).body as string);
-    expect(body).toMatchObject({ chat_id: '111', parse_mode: 'Markdown', text: 'hello' });
+    expect(body).toMatchObject({ chat_id: '-1001', parse_mode: 'Markdown', text: 'hello' });
   });
 
   it('reports not-configured when token missing', async () => {
     const tg = new TelegramService('');
-    const results = await tg.sendMessage(['111'], 'x');
-    expect(results[0].ok).toBe(false);
+    const result = await tg.sendMessage('-1001', 'x');
+    expect(result.ok).toBe(false);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('edits an existing message via editMessageText', async () => {
+    const tg = new TelegramService('test-token');
+    const result = await tg.editMessage('-1001', 777, 'updated');
+    expect(result.ok).toBe(true);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toContain('/bottest-token/editMessageText');
+    const body = JSON.parse((init as RequestInit).body as string);
+    expect(body).toMatchObject({
+      chat_id: '-1001',
+      message_id: 777,
+      parse_mode: 'Markdown',
+      text: 'updated',
+    });
+  });
+
+  it('treats "message is not modified" as success', async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({ ok: false, description: 'Bad Request: message is not modified' }),
+        { status: 400 }
+      )
+    );
+    const tg = new TelegramService('test-token');
+    const result = await tg.editMessage('-1001', 777, 'same text');
+    expect(result.ok).toBe(true);
+  });
+
+  it('flags a deleted message so the caller can re-send', async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({ ok: false, description: 'Bad Request: message to edit not found' }),
+        { status: 400 }
+      )
+    );
+    const tg = new TelegramService('test-token');
+    const result = await tg.editMessage('-1001', 777, 'anything');
+    expect(result.ok).toBe(false);
+    expect(result.messageGone).toBe(true);
   });
 });
 
@@ -187,16 +232,31 @@ describe('NotificationService formatting', () => {
     const msg = svc.formatTelegramMessage(ctx);
     expect(msg).toContain('Victor Finayev');
     expect(msg).toContain('Company: Orange Logistics');
-    expect(msg).toContain('+17864714417');
     expect(msg).toContain('victor@example.com');
-    expect(msg).toContain('262 Tall Pines Rd');
-    expect(msg).toContain('Address:');
     expect(msg).toContain('$5,249.97');
     expect(msg).toContain('2 item(s)');
     expect(msg).toContain('[Bumper](https://tacoma-truckparts.com/products/bumper)');
     expect(msg).toContain('[Grille Guard](https://tacoma-truckparts.com/products/grille) x2');
     expect(msg).toContain('After-hours');
     expect(msg).toContain('[Open checkout](https://checkout.example.com/checkouts/abc123token)');
+  });
+
+  it('renders phone and address as monospace (tap-to-copy)', () => {
+    const msg = svc.formatTelegramMessage(ctx);
+    expect(msg).toContain('Phone: `+17864714417`');
+    expect(msg).toContain('Address: `262 Tall Pines Rd, West Palm Beach, Florida, US, 33413`');
+  });
+
+  it('shows a pending phone before the customer enters one', () => {
+    const msg = svc.formatTelegramMessage({ ...ctx, phone: null });
+    expect(msg).toContain('Phone: pending');
+    expect(msg).not.toContain('Phone: `');
+  });
+
+  it('adds the completed badge when the order is finished', () => {
+    expect(svc.formatTelegramMessage(ctx)).not.toContain('\u2705');
+    const msg = svc.formatTelegramMessage({ ...ctx, checkout_completed: true });
+    expect(msg).toContain('\u2705 Order completed');
   });
 
   it('falls back to Shopify recover URL when APP_URL is unset', () => {
@@ -260,6 +320,7 @@ describe('NotificationService customer MMS', () => {
   });
 
   it('falls back to SMS-only when image generation fails', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     fetchMock.mockImplementation(async (url: string) => {
       if (String(url).includes('twilio.com')) {
         return new Response(JSON.stringify({ sid: 'SM99', status: 'queued' }), { status: 201 });
@@ -292,5 +353,6 @@ describe('NotificationService customer MMS', () => {
     const twilioCall = fetchMock.mock.calls.find((c) => String(c[0]).includes('twilio.com'));
     const body = new URLSearchParams((twilioCall![1] as RequestInit).body as string);
     expect(body.get('MediaUrl')).toBeNull();
+    warnSpy.mockRestore();
   });
 });

@@ -4,7 +4,7 @@ import { createHmac } from 'node:crypto';
 // Mock the processor so the integration test focuses on the route's contract:
 // signature verification, JSON parsing, and the always-200 behavior.
 vi.mock('@/lib/services/checkout-processor', () => ({
-  processCheckout: vi.fn(async () => ({ status: 'notified', token: 't', afterHours: false, customerSmsSent: false })),
+  processCheckout: vi.fn(async () => ({ status: 'scheduled', token: 't' })),
 }));
 
 import { POST } from '@/app/api/webhooks/shopify/checkouts/route';
@@ -74,13 +74,13 @@ describe('POST /api/webhooks/shopify/checkouts', () => {
 
   it('is idempotent across duplicate deliveries (processor dedupes, route passes through)', async () => {
     const mock = processCheckout as unknown as ReturnType<typeof vi.fn>;
-    mock.mockResolvedValueOnce({ status: 'notified', token: 'd1' });
-    mock.mockResolvedValueOnce({ status: 'already_notified', token: 'd1' });
+    mock.mockResolvedValueOnce({ status: 'scheduled', token: 'd1' });
+    mock.mockResolvedValueOnce({ status: 'stored', token: 'd1' });
     const body = JSON.stringify({ token: 'd1', cart_token: 'c' });
 
     const r1 = await POST(makeReq(body, sign(body)));
     const r2 = await POST(makeReq(body, sign(body)));
-    expect((await r1.json()).outcome.status).toBe('notified');
-    expect((await r2.json()).outcome.status).toBe('already_notified');
+    expect((await r1.json()).outcome.status).toBe('scheduled');
+    expect((await r2.json()).outcome.status).toBe('stored');
   });
 });

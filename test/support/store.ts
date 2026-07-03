@@ -2,6 +2,7 @@
 // CheckoutProcessor can be unit-tested without a database or network.
 
 import { NotificationService } from '@/lib/services/notification';
+import type { TelegramEditResult, TelegramSendResult } from '@/lib/services/telegram';
 import { DEFAULT_SETTINGS } from '@/lib/settings-defaults';
 import { serializeItems } from '@/lib/util';
 import type {
@@ -35,9 +36,17 @@ export class InMemoryStore {
       items: serializeItems(c.items),
       notification_sent_at: existing?.notification_sent_at ?? null,
       customer_sms_sent_at: existing?.customer_sms_sent_at ?? null,
+      telegram_chat_id: existing?.telegram_chat_id ?? null,
+      telegram_message_id: existing?.telegram_message_id ?? null,
+      notify_job_scheduled_at: existing?.notify_job_scheduled_at ?? null,
       created_at: existing?.created_at ?? now,
       updated_at: now,
     });
+  };
+
+  getNotificationState = async (token: string): Promise<CheckoutRow | null> => {
+    const row = this.checkouts.get(token);
+    return row ? { ...row } : null;
   };
 
   claimNotification = async (token: string): Promise<CheckoutRow | null> => {
@@ -52,9 +61,40 @@ export class InMemoryStore {
     if (row) row.notification_sent_at = null;
   };
 
-  markCustomerSmsSent = async (token: string): Promise<void> => {
+  claimCustomerSms = async (token: string): Promise<boolean> => {
     const row = this.checkouts.get(token);
-    if (row && !row.customer_sms_sent_at) row.customer_sms_sent_at = new Date().toISOString();
+    if (!row || row.customer_sms_sent_at) return false;
+    row.customer_sms_sent_at = new Date().toISOString();
+    return true;
+  };
+
+  releaseCustomerSms = async (token: string): Promise<void> => {
+    const row = this.checkouts.get(token);
+    if (row) row.customer_sms_sent_at = null;
+  };
+
+  saveTelegramMessageRef = async (
+    token: string,
+    chatId: string,
+    messageId: number
+  ): Promise<void> => {
+    const row = this.checkouts.get(token);
+    if (row) {
+      row.telegram_chat_id = chatId;
+      row.telegram_message_id = messageId;
+    }
+  };
+
+  claimNotifyJob = async (token: string): Promise<boolean> => {
+    const row = this.checkouts.get(token);
+    if (!row || row.notify_job_scheduled_at) return false;
+    row.notify_job_scheduled_at = new Date().toISOString();
+    return true;
+  };
+
+  releaseNotifyJob = async (token: string): Promise<void> => {
+    const row = this.checkouts.get(token);
+    if (row) row.notify_job_scheduled_at = null;
   };
 
   getItems(token: string): CheckoutItem[] {
@@ -69,17 +109,28 @@ export class InMemoryStore {
 
 export class FakeNotifier extends NotificationService {
   internalCalls: NotificationContext[] = [];
+  updateCalls: { ctx: NotificationContext; chatId: string; messageId: number }[] = [];
   smsCalls: NotificationContext[] = [];
-  internalResult = true;
+  sendResult: TelegramSendResult = { ok: true, messageId: 42 };
+  editResult: TelegramEditResult = { ok: true };
   smsResult = true;
 
   constructor() {
     super();
   }
 
-  async sendInternal(ctx: NotificationContext, _settings: AppSettings): Promise<boolean> {
+  async sendInternal(ctx: NotificationContext, _settings: AppSettings): Promise<TelegramSendResult> {
     this.internalCalls.push(ctx);
-    return this.internalResult;
+    return this.sendResult;
+  }
+
+  async updateInternal(
+    ctx: NotificationContext,
+    chatId: string,
+    messageId: number
+  ): Promise<TelegramEditResult> {
+    this.updateCalls.push({ ctx, chatId, messageId });
+    return this.editResult;
   }
 
   async sendCustomerSms(ctx: NotificationContext, _settings: AppSettings): Promise<boolean> {
@@ -88,6 +139,11 @@ export class FakeNotifier extends NotificationService {
   }
 }
 
+export const TEST_SETTINGS: AppSettings = {
+  ...DEFAULT_SETTINGS,
+  telegram_group_chat_id: '-1001',
+};
+
 export function makeDeps(
   store: InMemoryStore,
   notifier: FakeNotifier,
@@ -95,11 +151,17 @@ export function makeDeps(
 ): Partial<ProcessorDeps> {
   return {
     upsertCheckout: store.upsertCheckout,
+    getNotificationState: store.getNotificationState,
     claimNotification: store.claimNotification,
-    markCustomerSmsSent: store.markCustomerSmsSent,
     releaseNotification: store.releaseNotification,
+    claimCustomerSms: store.claimCustomerSms,
+    releaseCustomerSms: store.releaseCustomerSms,
+    saveTelegramMessageRef: store.saveTelegramMessageRef,
+    claimNotifyJob: store.claimNotifyJob,
+    releaseNotifyJob: store.releaseNotifyJob,
+    publishNotifyJob: async () => {},
     fetchProducts: async () => new Map<string, ProductSummaryItem>(),
-    getSettings: async () => ({ ...DEFAULT_SETTINGS }),
+    getSettings: async () => ({ ...TEST_SETTINGS }),
     notifier,
     now: () => new Date(),
     ...overrides,

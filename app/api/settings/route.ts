@@ -51,15 +51,14 @@ export async function PUT(req: Request): Promise<Response> {
     return Response.json({ ok: false, error: 'working hours must be HH:MM (24h)' }, { status: 400 });
   }
 
-  const chatIds = Array.isArray(body.telegram_chat_ids)
-    ? body.telegram_chat_ids.map((s) => String(s).trim()).filter(Boolean)
-    : [];
+  const groupChatId =
+    typeof body.telegram_group_chat_id === 'string' ? body.telegram_group_chat_id.trim() : '';
 
   const next: AppSettings = {
     working_days: days.length ? days : d.working_days,
     working_hours_start: start,
     working_hours_end: end,
-    telegram_chat_ids: chatIds,
+    telegram_group_chat_id: groupChatId,
     sms_template: typeof body.sms_template === 'string' ? body.sms_template : d.sms_template,
     customer_sms_enabled: asBool(body.customer_sms_enabled, d.customer_sms_enabled),
   };

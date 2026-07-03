@@ -38,6 +38,9 @@ export interface CheckoutRow {
   checkout_completed: boolean;
   notification_sent_at: string | null;
   customer_sms_sent_at: string | null;
+  telegram_chat_id: string | null;
+  telegram_message_id: string | number | null;
+  notify_job_scheduled_at: string | null;
   items: string | null;
   created_at: string;
   updated_at: string;
@@ -50,7 +53,7 @@ export interface AppSettings {
   working_days: number[]; // 0=Sun ... 6=Sat
   working_hours_start: string; // "HH:MM"
   working_hours_end: string; // "HH:MM"
-  telegram_chat_ids: string[];
+  telegram_group_chat_id: string;
   sms_template: string;
   customer_sms_enabled: boolean;
 }
@@ -70,6 +73,7 @@ export interface NotificationContext {
   checkout_url: string | null;
   checkout_token: string;
   after_hours: boolean;
+  checkout_completed: boolean;
 }
 
 export interface ProductSummaryItem {

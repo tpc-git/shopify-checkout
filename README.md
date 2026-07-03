@@ -1,7 +1,7 @@
 # Shopify Checkout Notifier
 
 Production replacement for the Make.com "Shopify Checkout Notification" automation.
-When Shopify sends a `checkouts/update` webhook, this app stores a minimal snapshot
+When Shopify sends checkout webhooks, this app stores a minimal snapshot
 of the checkout and notifies the team (Telegram) and the customer (Twilio MMS) — exactly
 once per checkout, safely under Vercel's parallel execution model.
 
@@ -13,7 +13,9 @@ Built with Next.js 14 (App Router) + TypeScript + Neon Postgres, reusing the
 The app is organized around services, not a single webhook handler:
 
 ```
-app/api/webhooks/shopify/checkouts   ->  validation only (HMAC + JSON)
+app/api/webhooks/shopify/checkouts         ->  checkouts/update (HMAC + upsert/edit)
+app/api/webhooks/shopify/checkouts/create  ->  checkouts/create (HMAC + schedule job)
+app/api/qstash/notify                      ->  delayed first notification callback
 lib/services/checkout-processor.ts   ->  ALL business rules (the pipeline)
 lib/services/shopify.ts              ->  HMAC verify, normalize, product lookups
 lib/services/business-hours.ts       ->  timezone-aware business-hours logic
@@ -24,32 +26,36 @@ lib/cart-image/*                     ->  cart summary PNG (satori + resvg) for M
 lib/db/*                             ->  Neon repositories (checkouts, settings)
 ```
 
-### Processing pipeline (`processCheckout`)
+### Processing pipeline
 
 ```
-normalize -> hard-ignore rules -> upsert checkout -> upsert items
-  -> notification gate -> atomic once-only claim -> dispatch notifications
+checkouts/create -> upsert -> schedule QStash job (delay NOTIFY_DELAY_SECONDS)
+checkouts/update -> upsert -> message exists? edit in place : ensure job scheduled
+QStash callback  -> read latest row -> send first group message (+ after-hours SMS)
 ```
 
-- **Idempotency / no duplicate notifications:** the notification is gated by an
-  atomic `UPDATE checkouts SET notification_sent_at = now() WHERE notification_sent_at IS NULL RETURNING *`.
-  Only the first execution gets a row; concurrent/duplicate webhook deliveries
-  simply refresh the snapshot and stop. This is the same once-only mechanism the
-  Make.com blueprint used (`phone_received_at`).
-- **Always 200:** the webhook acknowledges every verified event so Shopify does
-  not trigger retry storms; correctness comes from the claim + snapshot model.
-- **Ignored events:** draft orders, non-web sources, and checkouts missing a
-  token / cart_token / shipping address are dropped without touching the DB.
-  Completed checkouts and checkouts without a phone are stored but not notified.
+- **Delayed first notification:** `checkouts/create` upserts the snapshot and
+  schedules one QStash job per checkout (`notify_job_scheduled_at` atomic claim +
+  `deduplicationId: token`). The callback at T+2min reads the latest row (email,
+  phone, address from updates in the window) and sends the first group message.
+- **Update webhook:** continuously upserts the snapshot. If a Telegram message
+  already exists, it is edited in place (phone arrives, totals change, completed
+  badge). Edit failures are logged and skipped (no re-send). If no message yet
+  and no job was scheduled (missed create), the update path schedules the job as
+  a fallback.
+- **One live Telegram message per checkout:** `telegram_chat_id` +
+  `telegram_message_id` on the row. After-hours customer SMS has its own atomic
+  claim and still fires from the update path when the phone arrives after the
+  first message.
+- **Always 200** on Shopify webhooks; QStash callback returns 200 on intentional
+  skips and 500 on transient failures (QStash retries).
 
 ### After-hours handling
 
 If a checkout arrives outside configured business hours:
-- the internal team is still notified immediately via Telegram,
-- the customer receives an MMS right away (if enabled) with a cart summary image
-  plus the SMS template body. Images are generated server-side, uploaded to
-  Vercel Blob, and attached via Twilio `MediaUrl`. If image generation or upload
-  fails, the app falls back to SMS-only.
+- the internal team is notified via Telegram when the QStash callback fires,
+- the customer receives an MMS at callback time (if phone is present and enabled),
+  or on a later update when the phone arrives.
 
 During business hours, only Telegram alerts are sent so sales managers can call
 the client.
@@ -59,7 +65,9 @@ the client.
 Only the minimum is stored — no webhook events, no logs, no full payload, no JSONB.
 
 - `checkouts` — latest snapshot per `token` (continuously upserted), including
-  line items in the `items` TEXT column as `product_id:qty,product_id:qty`.
+  line items in the `items` TEXT column as `product_id:qty,product_id:qty`, and
+  the Telegram group message reference (`telegram_chat_id`, `telegram_message_id`)
+  used to edit the message in place.
 - `application_settings` — key/value store for non-secret configuration.
 
 > Note: only a single `full_address` is stored (minimal-data design). The
@@ -110,7 +118,12 @@ npm test
 | `TWILIO_AUTH_TOKEN` | for MMS | Twilio auth token |
 | `TWILIO_FROM_NUMBER` | for MMS | Sender number in E.164 |
 | `BLOB_READ_WRITE_TOKEN` | for MMS | Vercel Blob token for cart image uploads |
-| `APP_URL` | optional | Public base URL of the deployment (reserved for deep links) |
+| `APP_URL` | for QStash | Public base URL (`/api/qstash/notify` callback target) |
+| `QSTASH_TOKEN` | for QStash | Upstash QStash publish token |
+| `QSTASH_URL` | for QStash | Regional QStash API URL |
+| `QSTASH_CURRENT_SIGNING_KEY` | for QStash | Verifies callback `Upstash-Signature` |
+| `QSTASH_NEXT_SIGNING_KEY` | for QStash | Key rotation support |
+| `NOTIFY_DELAY_SECONDS` | optional | Delay before first notification (default `120`) |
 
 \* Either provide `SHOPIFY_API_KEY` + `SHOPIFY_API_SECRET` (preferred) **or** a
 static `SHOPIFY_ADMIN_ACCESS_TOKEN`.
@@ -133,18 +146,32 @@ automatically before expiry (see `getAdminAccessToken()` in
   `SHOPIFY_WEBHOOK_SECRET` is typically identical to `SHOPIFY_API_SECRET`.
 
 Secrets live only in environment variables. Operational, non-secret settings
-(business hours, Telegram chat IDs, SMS template, toggles) are managed
+(business hours, Telegram group chat ID, SMS template, toggles) are managed
 in the in-app **Settings** page.
+
+### Telegram group setup
+
+1. Create a group with your sales managers and add the bot to it.
+2. Get the group chat ID: send any message in the group, then open
+   `https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/getUpdates` and read
+   `message.chat.id` (group IDs are negative, e.g. `-1001234567890`).
+3. Paste it into **Settings -> Telegram -> Group chat ID**.
+
+The bot posts one message per checkout and edits it as the checkout evolves.
+Phone and address are rendered in monospace, so a tap copies them.
 
 ## Deployment (Vercel)
 
 1. Import the repo into Vercel and set the env vars above (all environments).
 2. Run the migration once against Neon (`npm run migrate` locally, or the Neon
    SQL editor).
-3. In Shopify, create a `checkouts/update` webhook pointing to
-   `https://<your-app>/api/webhooks/shopify/checkouts` and use the same signing
-   secret as `SHOPIFY_WEBHOOK_SECRET`.
+3. In Shopify, register two webhooks (same signing secret as `SHOPIFY_WEBHOOK_SECRET`):
+   - `checkouts/create` -> `https://<your-app>/api/webhooks/shopify/checkouts/create`
+   - `checkouts/update` -> `https://<your-app>/api/webhooks/shopify/checkouts`
+4. Set `APP_URL` to your deployment URL (QStash callback target) and configure
+   `QSTASH_TOKEN`, `QSTASH_URL`, and signing keys from the Upstash console.
+   Optional: `NOTIFY_DELAY_SECONDS` (default `120`).
 
-Because notification dispatch is guarded by an atomic database claim, the app is
-safe under Vercel's concurrent/parallel function execution: duplicate or
-simultaneous webhook deliveries never produce duplicate notifications.
+Because notification dispatch is guarded by atomic database claims, the app is
+safe under Vercel's concurrent/parallel function execution: duplicate webhook
+deliveries and QStash retries never produce duplicate notifications.

@@ -128,11 +128,23 @@ export function hardIgnoreReason(
   return null;
 }
 
-// Notification gate: should this stored checkout produce a notification?
-// (The once-only guarantee is enforced separately by the atomic DB claim.)
+// Lighter ignore for checkouts/create: token + web source only (no cart_token
+// or shipping_address — create events often lack them; callback re-checks at T+2min).
+export function createIgnoreReason(n: NormalizedCheckout): string | null {
+  if (!n.token) return 'missing token';
+  const src = (n.source_name ?? '').toLowerCase();
+  if (src.includes('draft')) return 'draft order';
+  if (src && !WEB_SOURCES.has(src)) return `non-web source: ${n.source_name}`;
+  return null;
+}
+
+// First-send gate: should this stored checkout produce the group message?
+// Email is enough to post the first message; the phone (and the completed
+// badge) arrive later as in-place edits. Completed checkouts never start a
+// new message. (Once-only is enforced separately by the atomic DB claim.)
 export function shouldNotify(n: NormalizedCheckout): boolean {
   if (n.checkout_completed) return false;
-  if (!n.phone) return false;
+  if (!n.phone && !n.email) return false;
   return true;
 }
 

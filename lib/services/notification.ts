@@ -7,7 +7,7 @@ import type { AppSettings, NotificationContext } from '@/lib/types';
 import { fetchImageDataUrls, generateCartPng } from '@/lib/cart-image/generate-cart-png';
 import { toCartImageData } from '@/lib/cart-image/types';
 import { uploadCartImage } from '@/lib/cart-image/upload-cart-image';
-import { TelegramService } from './telegram';
+import { TelegramService, type TelegramEditResult, type TelegramSendResult } from './telegram';
 import { TwilioService } from './twilio';
 
 const STOREFRONT = () => process.env.SHOPIFY_STOREFRONT_DOMAIN || 'tacoma-truckparts.com';
@@ -32,14 +32,16 @@ export class NotificationService {
     const store = STOREFRONT();
     const lines: string[] = [];
     lines.push(`\u203c\ufe0f New checkout on ${store} \u203c\ufe0f`);
+    if (ctx.checkout_completed) lines.push('\u2705 Order completed');
     if (ctx.after_hours) lines.push('\u{1F319} After-hours checkout');
     lines.push('');
     lines.push(`Customer: ${ctx.customer_name || 'Unknown'}`);
     if (ctx.company_name) lines.push(`Company: ${ctx.company_name}`);
-    lines.push(`Phone: ${ctx.phone || 'No Phone'}`);
+    // Backticks render as monospace in Telegram and copy the value on tap.
+    lines.push(ctx.phone ? `Phone: \`${ctx.phone}\`` : 'Phone: pending');
     lines.push(`Email: ${ctx.email || 'No Email'}`);
-    if (ctx.full_address) lines.push(`Address: ${ctx.full_address}`);
-    else if (ctx.destination) lines.push(`Destination: ${ctx.destination}`);
+    if (ctx.full_address) lines.push(`Address: \`${ctx.full_address}\``);
+    else if (ctx.destination) lines.push(`Destination: \`${ctx.destination}\``);
     lines.push('');
 
     const total = ctx.total != null ? ` (${money(ctx.total)})` : '';
@@ -76,12 +78,21 @@ export class NotificationService {
     );
   }
 
-  // Internal team notification (Telegram). Always attempted when chat IDs are configured.
-  async sendInternal(ctx: NotificationContext, settings: AppSettings): Promise<boolean> {
-    if (!settings.telegram_chat_ids.length) return false;
+  // First internal notification: post the checkout message to the group chat.
+  async sendInternal(ctx: NotificationContext, settings: AppSettings): Promise<TelegramSendResult> {
+    if (!settings.telegram_group_chat_id) return { ok: false, error: 'no group chat configured' };
     const text = this.formatTelegramMessage(ctx);
-    const results = await this.telegram.sendMessage(settings.telegram_chat_ids, text);
-    return results.some((r) => r.ok);
+    return this.telegram.sendMessage(settings.telegram_group_chat_id, text);
+  }
+
+  // Later events: edit the existing group message in place with fresh data.
+  async updateInternal(
+    ctx: NotificationContext,
+    chatId: string,
+    messageId: number
+  ): Promise<TelegramEditResult> {
+    const text = this.formatTelegramMessage(ctx);
+    return this.telegram.editMessage(chatId, messageId, text);
   }
 
   // Customer MMS via Twilio (cart image + SMS body). Falls back to SMS-only if image pipeline fails.

@@ -1,29 +1,21 @@
 // Repository for application_settings (key/value strings).
 // Secrets (tokens, API keys) intentionally live in env vars, not here.
 
-import { db, dbEnabled } from './client';
-import type { AppSettings } from '@/lib/types';
-import { DEFAULT_SETTINGS } from '@/lib/settings-defaults';
+import { DEFAULT_SETTINGS } from "@/lib/settings-defaults";
+import type { AppSettings } from "@/lib/types";
+import { db, dbEnabled } from "./client";
 
 export { DEFAULT_SETTINGS };
 
 function parseBool(v: string | undefined, fallback: boolean): boolean {
   if (v == null) return fallback;
-  return v === 'true' || v === '1';
-}
-
-function parseList(v: string | undefined): string[] {
-  if (!v) return [];
-  return v
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
+  return v === "true" || v === "1";
 }
 
 function parseDays(v: string | undefined, fallback: number[]): number[] {
   if (!v) return fallback;
   const days = v
-    .split(',')
+    .split(",")
     .map((s) => Number(s.trim()))
     .filter((n) => Number.isInteger(n) && n >= 0 && n <= 6);
   return days.length ? days : fallback;
@@ -35,9 +27,14 @@ function rowsToSettings(map: Record<string, string>): AppSettings {
     working_days: parseDays(map.working_days, d.working_days),
     working_hours_start: map.working_hours_start ?? d.working_hours_start,
     working_hours_end: map.working_hours_end ?? d.working_hours_end,
-    telegram_chat_ids: parseList(map.telegram_chat_ids),
+    telegram_group_chat_id: (
+      map.telegram_group_chat_id ?? d.telegram_group_chat_id
+    ).trim(),
     sms_template: map.sms_template ?? d.sms_template,
-    customer_sms_enabled: parseBool(map.customer_sms_enabled, d.customer_sms_enabled),
+    customer_sms_enabled: parseBool(
+      map.customer_sms_enabled,
+      d.customer_sms_enabled,
+    ),
   };
 }
 
@@ -50,7 +47,9 @@ const UPSERT_SETTING = `
 export async function getSettings(): Promise<AppSettings> {
   if (!dbEnabled()) return DEFAULT_SETTINGS;
   const sql = db();
-  const rows = (await sql.query(`SELECT "key", value FROM application_settings`)) as {
+  const rows = (await sql.query(
+    `SELECT "key", value FROM application_settings`,
+  )) as {
     key: string;
     value: string | null;
   }[];
@@ -64,25 +63,28 @@ export async function getSettings(): Promise<AppSettings> {
 export async function saveSettings(input: AppSettings): Promise<AppSettings> {
   const sql = db();
   const entries: [string, string][] = [
-    ['working_days', input.working_days.join(',')],
-    ['working_hours_start', input.working_hours_start],
-    ['working_hours_end', input.working_hours_end],
-    ['telegram_chat_ids', input.telegram_chat_ids.join(',')],
-    ['sms_template', input.sms_template],
-    ['customer_sms_enabled', String(input.customer_sms_enabled)],
+    ["working_days", input.working_days.join(",")],
+    ["working_hours_start", input.working_hours_start],
+    ["working_hours_end", input.working_hours_end],
+    ["telegram_group_chat_id", input.telegram_group_chat_id],
+    ["sms_template", input.sms_template],
+    ["customer_sms_enabled", String(input.customer_sms_enabled)],
   ];
   for (const [settingKey, settingValue] of entries) {
     await sql.query(UPSERT_SETTING, [settingKey, settingValue]);
   }
   for (const legacyKey of [
-    'timezone',
-    'quo_from_number',
-    'telegram_enabled',
-    'after_hours_enabled',
-    'after_hours_notify_internal',
-    'after_hours_delay_sms',
+    "timezone",
+    "quo_from_number",
+    "telegram_enabled",
+    "telegram_chat_ids",
+    "after_hours_enabled",
+    "after_hours_notify_internal",
+    "after_hours_delay_sms",
   ]) {
-    await sql.query(`DELETE FROM application_settings WHERE "key" = $1`, [legacyKey]);
+    await sql.query(`DELETE FROM application_settings WHERE "key" = $1`, [
+      legacyKey,
+    ]);
   }
   return input;
 }

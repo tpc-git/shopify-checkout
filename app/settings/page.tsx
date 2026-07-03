@@ -17,7 +17,6 @@ const DAYS = [
 
 export default function SettingsPage() {
   const [s, setS] = useState<AppSettings>(DEFAULT_SETTINGS);
-  const [chatIdsText, setChatIdsText] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -29,10 +28,7 @@ export default function SettingsPage() {
     fetch('/api/settings', { signal: ac.signal, cache: 'no-store' })
       .then((r) => r.json())
       .then((d) => {
-        if (d.settings) {
-          setS(d.settings);
-          setChatIdsText((d.settings.telegram_chat_ids || []).join('\n'));
-        }
+        if (d.settings) setS(d.settings);
         setEnabled(d.enabled !== false);
       })
       .catch((e) => {
@@ -57,19 +53,12 @@ export default function SettingsPage() {
     setSaved(false);
   }
 
-  function parseChatIds(text: string): string[] {
-    return text
-      .split(/[\n,]/)
-      .map((x) => x.trim())
-      .filter(Boolean);
-  }
-
-  function buildPayload(state: AppSettings, chatText: string): AppSettings {
+  function buildPayload(state: AppSettings): AppSettings {
     return {
       working_days: state.working_days,
       working_hours_start: state.working_hours_start,
       working_hours_end: state.working_hours_end,
-      telegram_chat_ids: parseChatIds(chatText),
+      telegram_group_chat_id: state.telegram_group_chat_id.trim(),
       sms_template: state.sms_template,
       customer_sms_enabled: state.customer_sms_enabled,
     };
@@ -79,7 +68,7 @@ export default function SettingsPage() {
     setSaving(true);
     setError('');
     setSaved(false);
-    const payload = buildPayload(s, chatIdsText);
+    const payload = buildPayload(s);
     try {
       const res = await fetch('/api/settings', {
         method: 'PUT',
@@ -92,7 +81,6 @@ export default function SettingsPage() {
         setError(d.error || 'Failed to save');
       } else {
         setS(d.settings);
-        setChatIdsText((d.settings.telegram_chat_ids || []).join('\n'));
         setSaved(true);
       }
     } catch (e) {
@@ -145,9 +133,19 @@ export default function SettingsPage() {
           <div className="section-label">Telegram</div>
           <div className="set-grid">
             <div className="full">
-              <label className="label">Chat IDs (one per line or comma-separated)</label>
-              <textarea value={chatIdsText} onChange={(e) => { setChatIdsText(e.target.value); setSaved(false); }} placeholder="163176601&#10;5863332767" />
-              <div className="field-note">Bot token is configured via the TELEGRAM_BOT_TOKEN environment variable.</div>
+              <label className="label">Group chat ID</label>
+              <input
+                type="text"
+                value={s.telegram_group_chat_id}
+                onChange={(e) => set('telegram_group_chat_id', e.target.value)}
+                placeholder="-1001234567890"
+              />
+              <div className="field-note">
+                Add the bot to a group with your sales managers, then put the group chat ID here
+                (group IDs are negative, e.g. -1001234567890). One message is sent per checkout and
+                edited in place as new details arrive. Bot token is configured via the
+                TELEGRAM_BOT_TOKEN environment variable.
+              </div>
             </div>
           </div>
 
