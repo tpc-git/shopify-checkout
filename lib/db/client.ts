@@ -19,7 +19,9 @@ function databaseUrl(): string {
 
 export function db(): NeonQueryFunction<false, false> {
   if (_sql) return _sql;
-  _sql = neon(databaseUrl());
+  // Neon runs SQL over fetch(); Next.js caches fetch by default on Vercel
+  // ("External APIs → Using cache" in request logs). Opt out so reads are live.
+  _sql = neon(databaseUrl(), { fetchOptions: { cache: 'no-store' } });
   return _sql;
 }
 
