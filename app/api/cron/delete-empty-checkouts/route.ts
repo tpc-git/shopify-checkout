@@ -1,4 +1,4 @@
-// Vercel Cron: delete stale empty checkouts (price but no line items, unchanged 24h+).
+// Vercel Cron: delete stale empty checkouts (no name/email/phone/address, unchanged 24h+).
 
 import { deleteStaleEmptyCheckouts } from '@/lib/db/checkouts';
 

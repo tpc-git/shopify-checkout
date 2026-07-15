@@ -130,6 +130,7 @@ npm test
 | `QSTASH_NEXT_SIGNING_KEY` | for QStash | Key rotation support |
 | `NOTIFY_DELAY_SECONDS` | optional | Delay before first Telegram notification (default `120`) |
 | `SMS_DELAY_SECONDS` | optional | Delay before after-hours customer SMS (default `300`) |
+| `SMS_ALLOWLIST` | temporary | Comma-separated E.164 phones allowed to receive SMS; unset = all |
 
 \* Either provide `SHOPIFY_API_KEY` + `SHOPIFY_API_SECRET` (preferred) **or** a
 static `SHOPIFY_ADMIN_ACCESS_TOKEN`.

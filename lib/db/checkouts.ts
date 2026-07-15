@@ -13,6 +13,9 @@ import type { AppSettings, CheckoutItem, CheckoutRow, NormalizedCheckout } from 
 
 export const STALE_EMPTY_CHECKOUT_HOURS = 24;
 
+// Empty = no usable notification contact data (name, email, phone, address).
+// Stale = unchanged for STALE_EMPTY_CHECKOUT_HOURS so late webhook updates can
+// still fill in contact fields before we delete.
 export async function deleteStaleEmptyCheckouts(): Promise<{
   deletedCount: number;
   tokens: string[];
@@ -20,8 +23,10 @@ export async function deleteStaleEmptyCheckouts(): Promise<{
   const sql = db();
   const rows = (await sql`
     DELETE FROM checkouts
-    WHERE (items IS NULL OR items = '')
-      AND (total IS NOT NULL OR subtotal IS NOT NULL)
+    WHERE (email IS NULL OR email = '')
+      AND (phone IS NULL OR phone = '')
+      AND (customer_name IS NULL OR customer_name = '')
+      AND (full_address IS NULL OR full_address = '')
       AND updated_at < now() - (${STALE_EMPTY_CHECKOUT_HOURS} * INTERVAL '1 hour')
     RETURNING token
   `) as { token: string }[];

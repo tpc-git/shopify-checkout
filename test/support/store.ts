@@ -162,6 +162,8 @@ export function makeDeps(
   notifier: FakeNotifier,
   overrides: Partial<ProcessorDeps> = {}
 ): Partial<ProcessorDeps> {
+  // Keep processor unit tests independent of a local SMS_ALLOWLIST env.
+  delete process.env.SMS_ALLOWLIST;
   return {
     upsertCheckout: store.upsertCheckout,
     getNotificationState: store.getNotificationState,

@@ -156,6 +156,7 @@ export default function SettingsPage() {
               <textarea value={s.sms_template} onChange={(e) => set('sms_template', e.target.value)} />
               <div className="field-note">
                 Quo credentials are configured via QUO_API_KEY and QUO_FROM_NUMBER.
+                If SMS_ALLOWLIST is set, only those E.164 numbers receive customer SMS (temporary test gate).
                 Template variables: {'{{customer_name}}'} {'{{company_name}}'} {'{{phone}}'} {'{{email}}'} {'{{total}}'} {'{{destination}}'} {'{{product_count}}'} {'{{checkout_url}}'}
               </div>
             </div>

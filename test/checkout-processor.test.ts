@@ -39,13 +39,13 @@ describe('normalizeCheckout', () => {
   it('trims, derives phone/name, parses money and product ids', () => {
     const n = normalizeCheckout(webWithPhone);
     expect(n.token).toBe('0a408fc8f19d991765cd8e7256dd57c9');
-    expect(n.phone).toBe('+17864714417');
-    expect(n.customer_name).toBe('Victor Finayev');
-    expect(n.company_name).toBe('TruckNetwork/ Orange Logistics');
+    expect(n.phone).toBe('+19737766152');
+    expect(n.customer_name).toBe('Pavlo Symonov');
+    expect(n.company_name).toBeNull();
     expect(n.total).toBe(5249.97);
     expect(n.subtotal).toBe(4049.97);
-    expect(n.full_address).toContain('West Palm Beach');
-    expect(n.destination).toBe('West Palm Beach, FL, US');
+    expect(n.full_address).toContain('Montvale');
+    expect(n.destination).toBe('Montvale, NJ, US');
     expect(n.items).toEqual([
       { product_id: '8126280237291', quantity: 1 },
       { product_id: '8877224165611', quantity: 2 },
@@ -289,6 +289,24 @@ describe('processCheckout (update) pipeline', () => {
     expect(sent).toMatchObject({ status: 'sent', afterHours: false });
     expect(publishSms).not.toHaveBeenCalled();
     expect(notifier.smsCalls).toHaveLength(0);
+  });
+
+  it('does not schedule SMS when phone is outside SMS_ALLOWLIST', async () => {
+    const store = new InMemoryStore();
+    const notifier = new FakeNotifier();
+    const publishSms = vi.fn(async () => {});
+    const deps = makeDeps(store, notifier, {
+      getSettings: async () => WEEKDAYS_ONLY,
+      now: () => SUNDAY,
+      publishSmsJob: publishSms,
+    });
+    process.env.SMS_ALLOWLIST = '+12065550999';
+
+    const out = await processCreateCheckout(webWithPhone, deps);
+    expect(out).toMatchObject({ status: 'scheduled', customerSmsScheduled: false });
+    expect(publishSms).not.toHaveBeenCalled();
+
+    delete process.env.SMS_ALLOWLIST;
   });
 
   it('sends scheduled SMS when still unfinished with phone; skips when completed', async () => {
