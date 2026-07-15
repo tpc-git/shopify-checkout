@@ -78,14 +78,48 @@ function destination(a: ShopifyAddress | null | undefined): string | null {
   return parts.length ? parts.join(', ') : null;
 }
 
+/** Split a full name: first token → first_name, rest → last_name. */
+function splitFullName(name: string | null): { first_name: string | null; last_name: string | null } {
+  if (!name) return { first_name: null, last_name: null };
+  const trimmed = name.trim();
+  if (!trimmed) return { first_name: null, last_name: null };
+  const space = trimmed.indexOf(' ');
+  if (space < 0) return { first_name: trimmed, last_name: null };
+  return {
+    first_name: trimmed.slice(0, space) || null,
+    last_name: trimmed.slice(space + 1).trim() || null,
+  };
+}
+
+function joinName(first: string | null, last: string | null): string | null {
+  const parts = [first, last].filter(Boolean);
+  return parts.length ? parts.join(' ') : null;
+}
+
 export function normalizeCheckout(payload: ShopifyCheckoutPayload): NormalizedCheckout {
   const ship = payload.shipping_address ?? null;
-  const customerName = firstNonEmpty(
-    ship?.name,
-    [ship?.first_name, ship?.last_name].filter(Boolean).join(' '),
-    [payload.customer?.first_name, payload.customer?.last_name].filter(Boolean).join(' '),
-    ship?.company
-  );
+
+  const shipFirst = trimToNull(ship?.first_name);
+  const shipLast = trimToNull(ship?.last_name);
+  const customerFirst = trimToNull(payload.customer?.first_name);
+  const customerLast = trimToNull(payload.customer?.last_name);
+
+  let first_name: string | null = null;
+  let last_name: string | null = null;
+
+  if (shipFirst || shipLast) {
+    first_name = shipFirst;
+    last_name = shipLast;
+  } else if (customerFirst || customerLast) {
+    first_name = customerFirst;
+    last_name = customerLast;
+  } else {
+    const fromName = splitFullName(trimToNull(ship?.name));
+    first_name = fromName.first_name;
+    last_name = fromName.last_name;
+  }
+
+  const customer_name = firstNonEmpty(joinName(first_name, last_name), trimToNull(ship?.company));
 
   const items = (payload.line_items ?? [])
     .map((li) => ({
@@ -99,7 +133,9 @@ export function normalizeCheckout(payload: ShopifyCheckoutPayload): NormalizedCh
     cart_token: trimToNull(payload.cart_token),
     email: trimToNull(payload.email),
     phone: firstNonEmpty(payload.phone, ship?.phone),
-    customer_name: customerName,
+    customer_name,
+    first_name,
+    last_name,
     company_name: trimToNull(ship?.company),
     full_address: fullAddress(ship),
     destination: destination(ship),

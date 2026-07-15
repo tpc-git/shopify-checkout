@@ -130,6 +130,8 @@ function mergeWithRow(n: NormalizedCheckout, row: CheckoutRow | null): Normalize
     email: n.email ?? row.email,
     phone: n.phone ?? row.phone,
     customer_name: n.customer_name ?? row.customer_name,
+    first_name: n.first_name ?? row.first_name,
+    last_name: n.last_name ?? row.last_name,
     full_address: n.full_address ?? row.full_address,
     destination: n.destination ?? row.destination,
   };
@@ -145,6 +147,8 @@ export function rowToNormalized(row: CheckoutRow): NormalizedCheckout {
     email: row.email,
     phone: row.phone,
     customer_name: row.customer_name,
+    first_name: row.first_name,
+    last_name: row.last_name,
     company_name: row.company_name,
     full_address: row.full_address,
     destination: row.destination,

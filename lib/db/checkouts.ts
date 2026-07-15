@@ -39,10 +39,11 @@ export async function upsertCheckout(c: NormalizedCheckout): Promise<void> {
   const items = serializeItems(c.items);
   await sql`
     INSERT INTO checkouts (
-      token, cart_token, email, phone, customer_name, company_name,
+      token, cart_token, email, phone, customer_name, first_name, last_name, company_name,
       full_address, destination, subtotal, total, checkout_completed, items, updated_at
     ) VALUES (
-      ${c.token}, ${c.cart_token}, ${c.email}, ${c.phone}, ${c.customer_name}, ${c.company_name},
+      ${c.token}, ${c.cart_token}, ${c.email}, ${c.phone}, ${c.customer_name}, ${c.first_name},
+      ${c.last_name}, ${c.company_name},
       ${c.full_address}, ${c.destination}, ${c.subtotal}, ${c.total}, ${c.checkout_completed}, ${items}, now()
     )
     ON CONFLICT (token) DO UPDATE SET
@@ -50,6 +51,8 @@ export async function upsertCheckout(c: NormalizedCheckout): Promise<void> {
       email = EXCLUDED.email,
       phone = COALESCE(EXCLUDED.phone, checkouts.phone),
       customer_name = COALESCE(EXCLUDED.customer_name, checkouts.customer_name),
+      first_name = COALESCE(EXCLUDED.first_name, checkouts.first_name),
+      last_name = COALESCE(EXCLUDED.last_name, checkouts.last_name),
       company_name = EXCLUDED.company_name,
       full_address = COALESCE(EXCLUDED.full_address, checkouts.full_address),
       destination = COALESCE(EXCLUDED.destination, checkouts.destination),

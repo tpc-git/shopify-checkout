@@ -40,6 +40,8 @@ describe('normalizeCheckout', () => {
     const n = normalizeCheckout(webWithPhone);
     expect(n.token).toBe('0a408fc8f19d991765cd8e7256dd57c9');
     expect(n.phone).toBe('+19737766152');
+    expect(n.first_name).toBe('Pavlo');
+    expect(n.last_name).toBe('Symonov');
     expect(n.customer_name).toBe('Pavlo Symonov');
     expect(n.company_name).toBeNull();
     expect(n.total).toBe(5249.97);
@@ -63,6 +65,21 @@ describe('normalizeCheckout', () => {
     expect(n.token).toBe('t1');
     expect(n.email).toBeNull();
     expect(n.company_name).toBeNull();
+    expect(n.first_name).toBeNull();
+    expect(n.last_name).toBeNull();
+    expect(n.customer_name).toBeNull();
+  });
+
+  it('splits shipping name when first/last are absent', () => {
+    const n = normalizeCheckout({
+      token: 't1',
+      cart_token: 'c1',
+      shipping_address: { name: 'Mary Jane Smith', address1: 'x' },
+      line_items: [],
+    });
+    expect(n.first_name).toBe('Mary');
+    expect(n.last_name).toBe('Jane Smith');
+    expect(n.customer_name).toBe('Mary Jane Smith');
   });
 });
 

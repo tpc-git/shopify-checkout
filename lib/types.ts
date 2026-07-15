@@ -12,6 +12,8 @@ export interface NormalizedCheckout {
   email: string | null;
   phone: string | null;
   customer_name: string | null;
+  first_name: string | null;
+  last_name: string | null;
   company_name: string | null;
   full_address: string | null;
   destination: string | null;
@@ -30,6 +32,8 @@ export interface CheckoutRow {
   email: string | null;
   phone: string | null;
   customer_name: string | null;
+  first_name: string | null;
+  last_name: string | null;
   company_name: string | null;
   full_address: string | null;
   destination: string | null;

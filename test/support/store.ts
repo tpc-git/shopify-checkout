@@ -27,6 +27,8 @@ export class InMemoryStore {
       email: c.email,
       phone: c.phone ?? existing?.phone ?? null,
       customer_name: c.customer_name ?? existing?.customer_name ?? null,
+      first_name: c.first_name ?? existing?.first_name ?? null,
+      last_name: c.last_name ?? existing?.last_name ?? null,
       company_name: c.company_name,
       full_address: c.full_address ?? existing?.full_address ?? null,
       destination: c.destination ?? existing?.destination ?? null,
