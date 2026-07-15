@@ -3,6 +3,7 @@ import {
   processCheckout,
   processCreateCheckout,
   sendFirstNotification,
+  sendScheduledCustomerSms,
 } from '@/lib/services/checkout-processor';
 import {
   normalizeCheckout,
@@ -251,7 +252,46 @@ describe('processCheckout (update) pipeline', () => {
     expect(store.checkouts.get(webWithPhone.token)?.telegram_message_id).toBe(42);
   });
 
-  it('sends customer SMS on update after callback (after hours)', async () => {
+  it('schedules after-hours SMS job on create (does not send immediately)', async () => {
+    const store = new InMemoryStore();
+    const notifier = new FakeNotifier();
+    const publishNotify = vi.fn(async () => {});
+    const publishSms = vi.fn(async () => {});
+    const deps = makeDeps(store, notifier, {
+      getSettings: async () => WEEKDAYS_ONLY,
+      now: () => SUNDAY,
+      publishNotifyJob: publishNotify,
+      publishSmsJob: publishSms,
+    });
+
+    const out = await processCreateCheckout(webWithPhone, deps);
+    expect(out).toMatchObject({ status: 'scheduled', customerSmsScheduled: true });
+    expect(publishNotify).toHaveBeenCalledOnce();
+    expect(publishSms).toHaveBeenCalledOnce();
+    expect(notifier.smsCalls).toHaveLength(0);
+    expect(store.checkouts.get(webWithPhone.token)?.sms_job_scheduled_at).toBeTruthy();
+
+    const sent = await sendFirstNotification(webWithPhone.token, deps);
+    expect(sent).toMatchObject({ status: 'sent', afterHours: true });
+    expect(notifier.smsCalls).toHaveLength(0);
+  });
+
+  it('does not schedule customer SMS during business hours', async () => {
+    const store = new InMemoryStore();
+    const notifier = new FakeNotifier();
+    const publishSms = vi.fn(async () => {});
+    const deps = makeDeps(store, notifier, {
+      getSettings: async () => ALWAYS_OPEN,
+      publishSmsJob: publishSms,
+    });
+    await processCheckout(webWithPhone, deps);
+    const sent = await sendFirstNotification(webWithPhone.token, deps);
+    expect(sent).toMatchObject({ status: 'sent', afterHours: false });
+    expect(publishSms).not.toHaveBeenCalled();
+    expect(notifier.smsCalls).toHaveLength(0);
+  });
+
+  it('sends scheduled SMS when still unfinished with phone; skips when completed', async () => {
     const store = new InMemoryStore();
     const notifier = new FakeNotifier();
     const deps = makeDeps(store, notifier, {
@@ -259,34 +299,51 @@ describe('processCheckout (update) pipeline', () => {
       now: () => SUNDAY,
     });
 
-    await processCheckout(webWithPhone, deps);
-    const sent = await sendFirstNotification(webWithPhone.token, deps);
-    expect(sent).toMatchObject({ status: 'sent', afterHours: true, customerSmsSent: true });
+    await processCreateCheckout(webWithPhone, deps);
+    const sent = await sendScheduledCustomerSms(webWithPhone.token, deps);
+    expect(sent).toMatchObject({ status: 'sent', token: webWithPhone.token });
     expect(notifier.smsCalls).toHaveLength(1);
-  });
 
-  it('does not send customer SMS during business hours on callback', async () => {
-    const store = new InMemoryStore();
-    const notifier = new FakeNotifier();
-    const deps = makeDeps(store, notifier, { getSettings: async () => ALWAYS_OPEN });
-    await processCheckout(webWithPhone, deps);
-    const sent = await sendFirstNotification(webWithPhone.token, deps);
-    expect(sent).toMatchObject({ status: 'sent', afterHours: false, customerSmsSent: false });
-    expect(notifier.smsCalls).toHaveLength(0);
-  });
+    const again = await sendScheduledCustomerSms(webWithPhone.token, deps);
+    expect(again).toMatchObject({ status: 'skipped', reason: 'sms already sent' });
+    expect(notifier.smsCalls).toHaveLength(1);
 
-  it('defers after-hours SMS until phone arrives on a later update', async () => {
-    const store = new InMemoryStore();
-    const notifier = new FakeNotifier();
-    const deps = makeDeps(store, notifier, {
+    const store2 = new InMemoryStore();
+    const notifier2 = new FakeNotifier();
+    const deps2 = makeDeps(store2, notifier2, {
       getSettings: async () => WEEKDAYS_ONLY,
       now: () => SUNDAY,
     });
+    await processCreateCheckout(webWithPhone, deps2);
+    await processCheckout(
+      { ...webWithPhone, completed_at: '2026-07-03T10:00:00-07:00' },
+      deps2
+    );
+    const skipped = await sendScheduledCustomerSms(webWithPhone.token, deps2);
+    expect(skipped).toMatchObject({ status: 'skipped', reason: 'checkout completed' });
+    expect(notifier2.smsCalls).toHaveLength(0);
+  });
 
-    await processCheckout(noPhone, deps);
+  it('releases SMS job when no phone yet; reschedules on later update with phone', async () => {
+    const store = new InMemoryStore();
+    const notifier = new FakeNotifier();
+    const publishSms = vi.fn(async () => {});
+    const deps = makeDeps(store, notifier, {
+      getSettings: async () => WEEKDAYS_ONLY,
+      now: () => SUNDAY,
+      publishSmsJob: publishSms,
+    });
+
+    await processCreateCheckout(noPhone, deps);
+    expect(publishSms).toHaveBeenCalledOnce();
+
     const first = await sendFirstNotification(noPhone.token, deps);
-    expect(first).toMatchObject({ status: 'sent', customerSmsSent: false });
+    expect(first).toMatchObject({ status: 'sent' });
     expect(notifier.smsCalls).toHaveLength(0);
+
+    const skipped = await sendScheduledCustomerSms(noPhone.token, deps);
+    expect(skipped).toMatchObject({ status: 'skipped', reason: 'no phone' });
+    expect(store.checkouts.get(noPhone.token)?.sms_job_scheduled_at).toBeNull();
 
     const withPhone = {
       ...noPhone,
@@ -294,11 +351,16 @@ describe('processCheckout (update) pipeline', () => {
       shipping_address: { ...noPhone.shipping_address, phone: '+12065550123' },
     };
     const second = await processCheckout(withPhone, deps);
-    expect(second).toMatchObject({ status: 'updated', customerSmsSent: true });
-    expect(notifier.smsCalls).toHaveLength(1);
+    expect(second).toMatchObject({ status: 'updated', customerSmsScheduled: true });
+    expect(publishSms).toHaveBeenCalledTimes(2);
+    expect(notifier.smsCalls).toHaveLength(0);
 
     const third = await processCheckout(withPhone, deps);
-    expect(third).toMatchObject({ status: 'updated', customerSmsSent: false });
+    expect(third).toMatchObject({ status: 'updated', customerSmsScheduled: false });
+    expect(publishSms).toHaveBeenCalledTimes(2);
+
+    const sent = await sendScheduledCustomerSms(noPhone.token, deps);
+    expect(sent).toMatchObject({ status: 'sent' });
     expect(notifier.smsCalls).toHaveLength(1);
   });
 });

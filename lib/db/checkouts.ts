@@ -11,6 +11,24 @@ import { itemCount, parseItems, serializeItems } from '@/lib/util';
 import { BUSINESS_TIMEZONE } from '@/lib/services/business-hours';
 import type { AppSettings, CheckoutItem, CheckoutRow, NormalizedCheckout } from '@/lib/types';
 
+export const STALE_EMPTY_CHECKOUT_HOURS = 24;
+
+export async function deleteStaleEmptyCheckouts(): Promise<{
+  deletedCount: number;
+  tokens: string[];
+}> {
+  const sql = db();
+  const rows = (await sql`
+    DELETE FROM checkouts
+    WHERE (items IS NULL OR items = '')
+      AND (total IS NOT NULL OR subtotal IS NOT NULL)
+      AND updated_at < now() - (${STALE_EMPTY_CHECKOUT_HOURS} * INTERVAL '1 hour')
+    RETURNING token
+  `) as { token: string }[];
+  const tokens = rows.map((r) => r.token);
+  return { deletedCount: tokens.length, tokens };
+}
+
 export async function upsertCheckout(c: NormalizedCheckout): Promise<void> {
   const sql = db();
   const items = serializeItems(c.items);
@@ -119,6 +137,27 @@ export async function releaseNotifyJob(token: string): Promise<void> {
   await sql`
     UPDATE checkouts
     SET notify_job_scheduled_at = NULL
+    WHERE token = ${token}
+  `;
+}
+
+// Atomic once-only claim for scheduling the QStash delayed customer-SMS job.
+export async function claimSmsJob(token: string): Promise<boolean> {
+  const sql = db();
+  const rows = (await sql`
+    UPDATE checkouts
+    SET sms_job_scheduled_at = now()
+    WHERE token = ${token} AND sms_job_scheduled_at IS NULL
+    RETURNING token
+  `) as { token: string }[];
+  return rows.length > 0;
+}
+
+export async function releaseSmsJob(token: string): Promise<void> {
+  const sql = db();
+  await sql`
+    UPDATE checkouts
+    SET sms_job_scheduled_at = NULL
     WHERE token = ${token}
   `;
 }

@@ -39,6 +39,7 @@ export class InMemoryStore {
       telegram_chat_id: existing?.telegram_chat_id ?? null,
       telegram_message_id: existing?.telegram_message_id ?? null,
       notify_job_scheduled_at: existing?.notify_job_scheduled_at ?? null,
+      sms_job_scheduled_at: existing?.sms_job_scheduled_at ?? null,
       created_at: existing?.created_at ?? now,
       updated_at: now,
     });
@@ -95,6 +96,18 @@ export class InMemoryStore {
   releaseNotifyJob = async (token: string): Promise<void> => {
     const row = this.checkouts.get(token);
     if (row) row.notify_job_scheduled_at = null;
+  };
+
+  claimSmsJob = async (token: string): Promise<boolean> => {
+    const row = this.checkouts.get(token);
+    if (!row || row.sms_job_scheduled_at) return false;
+    row.sms_job_scheduled_at = new Date().toISOString();
+    return true;
+  };
+
+  releaseSmsJob = async (token: string): Promise<void> => {
+    const row = this.checkouts.get(token);
+    if (row) row.sms_job_scheduled_at = null;
   };
 
   getItems(token: string): CheckoutItem[] {
@@ -159,7 +172,10 @@ export function makeDeps(
     saveTelegramMessageRef: store.saveTelegramMessageRef,
     claimNotifyJob: store.claimNotifyJob,
     releaseNotifyJob: store.releaseNotifyJob,
+    claimSmsJob: store.claimSmsJob,
+    releaseSmsJob: store.releaseSmsJob,
     publishNotifyJob: async () => {},
+    publishSmsJob: async () => {},
     fetchProducts: async () => new Map<string, ProductSummaryItem>(),
     getSettings: async () => ({ ...TEST_SETTINGS }),
     notifier,

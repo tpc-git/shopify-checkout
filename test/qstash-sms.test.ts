@@ -5,24 +5,24 @@ vi.mock('@/lib/services/qstash', () => ({
 }));
 
 vi.mock('@/lib/services/checkout-processor', () => ({
-  sendFirstNotification: vi.fn(async () => ({ status: 'sent', token: 't', afterHours: false })),
+  sendScheduledCustomerSms: vi.fn(async () => ({ status: 'sent', token: 't' })),
 }));
 
-import { POST } from '@/app/api/qstash/notify/route';
+import { POST } from '@/app/api/qstash/sms/route';
 import { verifyQstashSignature } from '@/lib/services/qstash';
-import { sendFirstNotification } from '@/lib/services/checkout-processor';
+import { sendScheduledCustomerSms } from '@/lib/services/checkout-processor';
 
 function makeReq(body: string, signature: string | null): Request {
   const headers: Record<string, string> = { 'content-type': 'application/json' };
   if (signature) headers['upstash-signature'] = signature;
-  return new Request('http://localhost/api/qstash/notify', {
+  return new Request('http://localhost/api/qstash/sms', {
     method: 'POST',
     headers,
     body,
   });
 }
 
-describe('POST /api/qstash/notify', () => {
+describe('POST /api/qstash/sms', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     (verifyQstashSignature as ReturnType<typeof vi.fn>).mockResolvedValue(true);
@@ -32,7 +32,7 @@ describe('POST /api/qstash/notify', () => {
     (verifyQstashSignature as ReturnType<typeof vi.fn>).mockResolvedValue(false);
     const res = await POST(makeReq('{"token":"t"}', 'sig'));
     expect(res.status).toBe(401);
-    expect(sendFirstNotification).not.toHaveBeenCalled();
+    expect(sendScheduledCustomerSms).not.toHaveBeenCalled();
   });
 
   it('skips when token is missing', async () => {
@@ -40,29 +40,29 @@ describe('POST /api/qstash/notify', () => {
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.outcome).toMatchObject({ status: 'skipped', reason: 'missing token' });
-    expect(sendFirstNotification).not.toHaveBeenCalled();
+    expect(sendScheduledCustomerSms).not.toHaveBeenCalled();
   });
 
-  it('calls sendFirstNotification and returns 200 on success', async () => {
+  it('calls sendScheduledCustomerSms and returns 200 on success', async () => {
     const res = await POST(makeReq('{"token":"abc"}', 'sig'));
     expect(res.status).toBe(200);
-    expect(sendFirstNotification).toHaveBeenCalledWith('abc');
+    expect(sendScheduledCustomerSms).toHaveBeenCalledWith('abc');
   });
 
   it('returns 500 on transient send failure so QStash retries', async () => {
-    (sendFirstNotification as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+    (sendScheduledCustomerSms as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       status: 'error',
       token: 'abc',
-      error: 'telegram down',
+      error: 'sms send failed',
     });
     const res = await POST(makeReq('{"token":"abc"}', 'sig'));
     expect(res.status).toBe(500);
   });
 
   it('returns 200 on intentional skip', async () => {
-    (sendFirstNotification as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+    (sendScheduledCustomerSms as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       status: 'skipped',
-      reason: 'no contact info or completed',
+      reason: 'checkout completed',
     });
     const res = await POST(makeReq('{"token":"abc"}', 'sig'));
     expect(res.status).toBe(200);

@@ -6,7 +6,7 @@
 --   A/H badge is derived from created_at at read time (not stored).
 --
 -- application_settings: key/value store for non-secret, UI-editable config.
---   Secrets (Shopify, Telegram, Twilio) live in environment variables only.
+--   Secrets (Shopify, Telegram, Quo) live in environment variables only.
 --
 -- Business hours use America/Los_Angeles (hardcoded, not stored here).
 

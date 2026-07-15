@@ -2,7 +2,7 @@
 
 Production replacement for the Make.com "Shopify Checkout Notification" automation.
 When Shopify sends checkout webhooks, this app stores a minimal snapshot
-of the checkout and notifies the team (Telegram) and the customer (Twilio MMS) — exactly
+of the checkout and notifies the team (Telegram) and the customer (Quo SMS) — exactly
 once per checkout, safely under Vercel's parallel execution model.
 
 Built with Next.js 14 (App Router) + TypeScript + Neon Postgres, reusing the
@@ -15,47 +15,53 @@ The app is organized around services, not a single webhook handler:
 ```
 app/api/webhooks/shopify/checkouts         ->  checkouts/update (HMAC + upsert/edit)
 app/api/webhooks/shopify/checkouts/create  ->  checkouts/create (HMAC + schedule job)
-app/api/qstash/notify                      ->  delayed first notification callback
+app/api/qstash/notify                      ->  delayed first Telegram notification
+app/api/qstash/sms                         ->  delayed after-hours customer SMS
 lib/services/checkout-processor.ts   ->  ALL business rules (the pipeline)
 lib/services/shopify.ts              ->  HMAC verify, normalize, product lookups
 lib/services/business-hours.ts       ->  timezone-aware business-hours logic
 lib/services/notification.ts         ->  message formatting + dispatch
 lib/services/telegram.ts             ->  Telegram Bot API
-lib/services/twilio.ts               ->  Twilio SMS/MMS API
-lib/cart-image/*                     ->  cart summary PNG (satori + resvg) for MMS
+lib/services/quo.ts                  ->  Quo SMS API
+lib/cart-image/*                     ->  cart summary PNG (dormant; MMS disabled)
 lib/db/*                             ->  Neon repositories (checkouts, settings)
 ```
 
 ### Processing pipeline
 
 ```
-checkouts/create -> upsert -> schedule QStash job (delay NOTIFY_DELAY_SECONDS)
-checkouts/update -> upsert -> message exists? edit in place : ensure job scheduled
-QStash callback  -> read latest row -> send first group message (+ after-hours SMS)
+checkouts/create -> upsert -> schedule notify job (+ after-hours SMS job)
+checkouts/update -> upsert -> message exists? edit in place : ensure jobs scheduled
+QStash /notify   -> read latest row -> send first Telegram group message
+QStash /sms      -> read latest row -> send Quo SMS if still unfinished + eligible
 ```
 
 - **Delayed first notification:** `checkouts/create` upserts the snapshot and
-  schedules one QStash job per checkout (`notify_job_scheduled_at` atomic claim +
-  `deduplicationId: token`). The callback at T+2min reads the latest row (email,
-  phone, address from updates in the window) and sends the first group message.
+  schedules one QStash notify job per checkout (`notify_job_scheduled_at` atomic claim +
+  `deduplicationId: token`). The callback at T+`NOTIFY_DELAY_SECONDS` (default 2 min)
+  reads the latest row and sends the first group message.
+- **Delayed after-hours SMS:** when the checkout arrives after hours (and SMS is enabled),
+  a separate QStash SMS job is scheduled (`sms_job_scheduled_at`, `deduplicationId: sms-{token}`,
+  delay `SMS_DELAY_SECONDS`, default 5 min). The callback re-checks eligibility and skips if
+  the checkout completed; if there is still no phone, the SMS job claim is released so a later
+  update can reschedule.
 - **Update webhook:** continuously upserts the snapshot. If a Telegram message
   already exists, it is edited in place (phone arrives, totals change, completed
   badge). Edit failures are logged and skipped (no re-send). If no message yet
-  and no job was scheduled (missed create), the update path schedules the job as
+  and no job was scheduled (missed create), the update path schedules jobs as
   a fallback.
 - **One live Telegram message per checkout:** `telegram_chat_id` +
-  `telegram_message_id` on the row. After-hours customer SMS has its own atomic
-  claim and still fires from the update path when the phone arrives after the
-  first message.
-- **Always 200** on Shopify webhooks; QStash callback returns 200 on intentional
+  `telegram_message_id` on the row. Customer SMS has its own once-only send claim
+  (`customer_sms_sent_at`).
+- **Always 200** on Shopify webhooks; QStash callbacks return 200 on intentional
   skips and 500 on transient failures (QStash retries).
 
 ### After-hours handling
 
 If a checkout arrives outside configured business hours:
-- the internal team is notified via Telegram when the QStash callback fires,
-- the customer receives an MMS at callback time (if phone is present and enabled),
-  or on a later update when the phone arrives.
+- the internal team is notified via Telegram when the notify callback fires,
+- the customer is scheduled an SMS ~5 minutes later (if enabled); at fire time the
+  SMS is sent only if the checkout is still unfinished and a phone is present.
 
 During business hours, only Telegram alerts are sent so sales managers can call
 the client.
@@ -97,9 +103,10 @@ npm test
   store and a fake notifier.
 - `test/webhook.test.ts` — integration tests for the webhook route (valid/invalid
   HMAC, 400 on bad JSON, always-200 contract, idempotent double-delivery).
-- `test/services.test.ts` — Telegram and Twilio services with a mocked `fetch`, plus
-  message/MMS formatting.
-- `test/cart-image.test.ts` — cart image data shaping and satori render smoke test.
+- `test/services.test.ts` — Telegram and Quo services with a mocked `fetch`, plus
+  message/SMS formatting.
+- `test/cart-image.test.ts` — cart image data shaping and satori render smoke test
+  (pipeline kept for a future MMS re-enable).
 - `test/fixtures/*.json` — sample Shopify webhook payloads.
 
 ## Environment variables
@@ -114,16 +121,15 @@ npm test
 | `SHOPIFY_ADMIN_ACCESS_TOKEN` | optional | Static Admin token; if set, overrides the client credentials grant |
 | `SHOPIFY_STOREFRONT_DOMAIN` | optional | Public domain for product links (default `tacoma-truckparts.com`) |
 | `TELEGRAM_BOT_TOKEN` | for Telegram | Bot token from @BotFather |
-| `TWILIO_ACCOUNT_SID` | for MMS | Twilio account SID |
-| `TWILIO_AUTH_TOKEN` | for MMS | Twilio auth token |
-| `TWILIO_FROM_NUMBER` | for MMS | Sender number in E.164 |
-| `BLOB_READ_WRITE_TOKEN` | for MMS | Vercel Blob token for cart image uploads |
-| `APP_URL` | for QStash | Public base URL (`/api/qstash/notify` callback target) |
+| `QUO_API_KEY` | for SMS | Quo API key (raw Authorization header) |
+| `QUO_FROM_NUMBER` | for SMS | Sender number in E.164 |
+| `APP_URL` | for QStash | Public base URL (`/api/qstash/notify` and `/api/qstash/sms`) |
 | `QSTASH_TOKEN` | for QStash | Upstash QStash publish token |
 | `QSTASH_URL` | for QStash | Regional QStash API URL |
 | `QSTASH_CURRENT_SIGNING_KEY` | for QStash | Verifies callback `Upstash-Signature` |
 | `QSTASH_NEXT_SIGNING_KEY` | for QStash | Key rotation support |
-| `NOTIFY_DELAY_SECONDS` | optional | Delay before first notification (default `120`) |
+| `NOTIFY_DELAY_SECONDS` | optional | Delay before first Telegram notification (default `120`) |
+| `SMS_DELAY_SECONDS` | optional | Delay before after-hours customer SMS (default `300`) |
 
 \* Either provide `SHOPIFY_API_KEY` + `SHOPIFY_API_SECRET` (preferred) **or** a
 static `SHOPIFY_ADMIN_ACCESS_TOKEN`.

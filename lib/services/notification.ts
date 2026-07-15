@@ -1,26 +1,18 @@
 // Notification orchestration: formats messages and dispatches them through the
-// Telegram and Twilio services. It only knows HOW to send; the CheckoutProcessor
+// Telegram and Quo services. It only knows HOW to send; the CheckoutProcessor
 // decides WHETHER and WHEN to send.
 
 import { appCheckoutUrl, money } from '@/lib/util';
 import type { AppSettings, NotificationContext } from '@/lib/types';
-import { fetchImageDataUrls, generateCartPng } from '@/lib/cart-image/generate-cart-png';
-import { toCartImageData } from '@/lib/cart-image/types';
-import { uploadCartImage } from '@/lib/cart-image/upload-cart-image';
 import { TelegramService, type TelegramEditResult, type TelegramSendResult } from './telegram';
-import { TwilioService } from './twilio';
+import { QuoService } from './quo';
 
 const STOREFRONT = () => process.env.SHOPIFY_STOREFRONT_DOMAIN || 'tacoma-truckparts.com';
-
-export type CartPngGenerator = typeof generateCartPng;
-export type CartImageUploader = typeof uploadCartImage;
 
 export class NotificationService {
   constructor(
     private telegram: TelegramService = new TelegramService(),
-    private twilio: TwilioService = new TwilioService(),
-    private generatePng: CartPngGenerator = generateCartPng,
-    private uploadImage: CartImageUploader = uploadCartImage
+    private quo: QuoService = new QuoService()
   ) {}
 
   /** App checkout page when APP_URL is set; otherwise Shopify recover URL. */
@@ -104,29 +96,12 @@ export class NotificationService {
     return this.telegram.editMessage(chatId, messageId, text);
   }
 
-  // Customer MMS via Twilio (cart image + SMS body). Falls back to SMS-only if image pipeline fails.
+  // Customer SMS via Quo (text only; cart MMS image pipeline is disabled for now).
   async sendCustomerSms(ctx: NotificationContext, settings: AppSettings): Promise<boolean> {
     if (!settings.customer_sms_enabled) return false;
     if (!ctx.phone) return false;
     const body = this.renderSms(settings.sms_template, ctx);
-
-    let mediaUrl: string | undefined;
-    try {
-      const imageDataUrls = await fetchImageDataUrls(ctx.product_summary);
-      const cartData = toCartImageData({
-        checkout_token: ctx.checkout_token,
-        subtotal: ctx.subtotal,
-        total: ctx.total,
-        product_summary: ctx.product_summary,
-        imageDataUrls,
-      });
-      const png = await this.generatePng(cartData);
-      mediaUrl = await this.uploadImage(png, ctx.checkout_token);
-    } catch (e) {
-      console.warn('[mms] cart image failed, sending SMS only', e);
-    }
-
-    const result = await this.twilio.sendMms(ctx.phone, body, mediaUrl);
+    const result = await this.quo.sendSms(ctx.phone, body);
     return result.ok;
   }
 }

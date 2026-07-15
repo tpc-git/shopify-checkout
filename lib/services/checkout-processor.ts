@@ -2,23 +2,25 @@
 //
 // Pipeline (update webhook):
 //   normalize -> hard-ignore -> upsert -> message exists? edit in place
-//   : schedule QStash job if not yet scheduled -> stored/scheduled
+//   : schedule QStash jobs if not yet scheduled -> stored/scheduled
 //
 // Pipeline (create webhook):
-//   normalize -> light ignore -> upsert -> schedule QStash job
+//   normalize -> light ignore -> upsert -> schedule notify + after-hours SMS jobs
 //
-// First Telegram send happens only in the QStash callback (T+NOTIFY_DELAY_SECONDS),
-// built from the latest DB row. Customer SMS still fires from the update path
-// when the phone arrives after the first message (after hours, once-only claim).
+// First Telegram send happens only in the QStash notify callback
+// (T+NOTIFY_DELAY_SECONDS). Customer SMS is a separate QStash job
+// (T+SMS_DELAY_SECONDS, default 5 min) and re-checks unfinished/eligible at fire time.
 
 import {
   claimCustomerSms,
   claimNotification,
   claimNotifyJob,
+  claimSmsJob,
   getNotificationState,
   releaseCustomerSms,
   releaseNotification,
   releaseNotifyJob,
+  releaseSmsJob,
   saveTelegramMessageRef,
   upsertCheckout,
 } from '@/lib/db/checkouts';
@@ -34,7 +36,7 @@ import {
 } from './shopify';
 import { isAfterHours } from './business-hours';
 import { NotificationService } from './notification';
-import { publishNotifyJob } from './qstash';
+import { publishNotifyJob, publishSmsJob } from './qstash';
 import type {
   AppSettings,
   CheckoutRow,
@@ -46,13 +48,18 @@ import type {
 export type ProcessOutcome =
   | { status: 'ignored'; reason: string }
   | { status: 'stored'; token: string }
-  | { status: 'scheduled'; token: string }
-  | { status: 'updated'; token: string; afterHours: boolean; customerSmsSent: boolean }
+  | { status: 'scheduled'; token: string; customerSmsScheduled?: boolean }
+  | { status: 'updated'; token: string; afterHours: boolean; customerSmsScheduled: boolean }
   | { status: 'error'; token: string; error: string };
 
 export type SendFirstOutcome =
   | { status: 'skipped'; reason: string }
-  | { status: 'sent'; token: string; afterHours: boolean; customerSmsSent: boolean }
+  | { status: 'sent'; token: string; afterHours: boolean }
+  | { status: 'error'; token: string; error: string };
+
+export type SendSmsOutcome =
+  | { status: 'skipped'; reason: string }
+  | { status: 'sent'; token: string }
   | { status: 'error'; token: string; error: string };
 
 export interface ProcessorDeps {
@@ -62,10 +69,13 @@ export interface ProcessorDeps {
   releaseNotification: (token: string) => Promise<void>;
   claimNotifyJob: typeof claimNotifyJob;
   releaseNotifyJob: (token: string) => Promise<void>;
+  claimSmsJob: typeof claimSmsJob;
+  releaseSmsJob: (token: string) => Promise<void>;
   claimCustomerSms: (token: string) => Promise<boolean>;
   releaseCustomerSms: (token: string) => Promise<void>;
   saveTelegramMessageRef: (token: string, chatId: string, messageId: number) => Promise<void>;
   publishNotifyJob: (token: string) => Promise<void>;
+  publishSmsJob: (token: string) => Promise<void>;
   fetchProducts: typeof fetchProducts;
   getSettings: () => Promise<AppSettings>;
   notifier: NotificationService;
@@ -80,10 +90,13 @@ function defaultDeps(): ProcessorDeps {
     releaseNotification,
     claimNotifyJob,
     releaseNotifyJob,
+    claimSmsJob,
+    releaseSmsJob,
     claimCustomerSms,
     releaseCustomerSms,
     saveTelegramMessageRef,
     publishNotifyJob,
+    publishSmsJob,
     fetchProducts,
     getSettings,
     notifier: new NotificationService(),
@@ -167,20 +180,6 @@ async function buildContext(
   };
 }
 
-async function maybeSendCustomerSms(
-  deps: ProcessorDeps,
-  ctx: NotificationContext,
-  settings: AppSettings,
-  afterHours: boolean
-): Promise<boolean> {
-  if (!afterHours || !settings.customer_sms_enabled) return false;
-  if (!ctx.phone || ctx.checkout_completed) return false;
-  if (!(await deps.claimCustomerSms(ctx.checkout_token))) return false;
-  const sent = await deps.notifier.sendCustomerSms(ctx, settings);
-  if (!sent) await deps.releaseCustomerSms(ctx.checkout_token).catch(() => {});
-  return sent;
-}
-
 /** Claim and publish a QStash delayed-notification job (once per checkout). */
 async function scheduleNotifyJob(
   deps: ProcessorDeps,
@@ -195,6 +194,31 @@ async function scheduleNotifyJob(
     return 'scheduled';
   } catch (e) {
     await deps.releaseNotifyJob(token).catch(() => {});
+    throw e;
+  }
+}
+
+/**
+ * Claim and publish a delayed customer-SMS job when after hours and SMS enabled.
+ * Skipped when already sent, already scheduled, in hours, or disabled.
+ */
+async function scheduleSmsJob(
+  deps: ProcessorDeps,
+  token: string,
+  row: CheckoutRow | null,
+  settings: AppSettings,
+  afterHours: boolean
+): Promise<'scheduled' | 'already_scheduled' | 'skipped'> {
+  if (!afterHours || !settings.customer_sms_enabled) return 'skipped';
+  if (row?.customer_sms_sent_at) return 'skipped';
+  if (row?.sms_job_scheduled_at) return 'already_scheduled';
+  const claimed = await deps.claimSmsJob(token);
+  if (!claimed) return 'already_scheduled';
+  try {
+    await deps.publishSmsJob(token);
+    return 'scheduled';
+  } catch (e) {
+    await deps.releaseSmsJob(token).catch(() => {});
     throw e;
   }
 }
@@ -231,10 +255,58 @@ export async function sendFirstNotification(
       return { status: 'error', token, error: sent.error ?? 'telegram send failed' };
     }
 
-    const customerSmsSent = await maybeSendCustomerSms(deps, ctx, settings, afterHours);
-    return { status: 'sent', token, afterHours, customerSmsSent };
+    return { status: 'sent', token, afterHours };
   } catch (e) {
     await deps.releaseNotification(token).catch(() => {});
+    return { status: 'error', token, error: (e as Error).message };
+  }
+}
+
+/**
+ * QStash SMS callback: send after-hours customer SMS from the latest row state
+ * if the checkout is still unfinished and eligible.
+ */
+export async function sendScheduledCustomerSms(
+  token: string,
+  overrides: Partial<ProcessorDeps> = {}
+): Promise<SendSmsOutcome> {
+  const deps = { ...defaultDeps(), ...overrides };
+
+  const row = await deps.getNotificationState(token);
+  if (!row) return { status: 'skipped', reason: 'checkout not found' };
+  if (row.customer_sms_sent_at) return { status: 'skipped', reason: 'sms already sent' };
+
+  const settings = await deps.getSettings();
+  if (!settings.customer_sms_enabled) {
+    return { status: 'skipped', reason: 'customer sms disabled' };
+  }
+
+  const afterHours = isAfterHours(deps.now(), settings);
+  if (!afterHours) return { status: 'skipped', reason: 'inside business hours' };
+
+  const m = rowToNormalized(row);
+  if (m.checkout_completed) return { status: 'skipped', reason: 'checkout completed' };
+
+  if (!m.phone) {
+    // Allow a later update to schedule again once a phone is present.
+    await deps.releaseSmsJob(token).catch(() => {});
+    return { status: 'skipped', reason: 'no phone' };
+  }
+
+  if (!(await deps.claimCustomerSms(token))) {
+    return { status: 'skipped', reason: 'sms already claimed' };
+  }
+
+  try {
+    const ctx = await buildContext(deps, m, afterHours);
+    const sent = await deps.notifier.sendCustomerSms(ctx, settings);
+    if (!sent) {
+      await deps.releaseCustomerSms(token).catch(() => {});
+      return { status: 'error', token, error: 'sms send failed' };
+    }
+    return { status: 'sent', token };
+  } catch (e) {
+    await deps.releaseCustomerSms(token).catch(() => {});
     return { status: 'error', token, error: (e as Error).message };
   }
 }
@@ -253,9 +325,16 @@ export async function processCreateCheckout(
   await deps.upsertCheckout(n);
 
   const row = await deps.getNotificationState(n.token);
+  const settings = await deps.getSettings();
+  const afterHours = isAfterHours(deps.now(), settings);
+
   try {
-    const result = await scheduleNotifyJob(deps, n.token, row);
-    if (result === 'scheduled') return { status: 'scheduled', token: n.token };
+    const notifyResult = await scheduleNotifyJob(deps, n.token, row);
+    const smsResult = await scheduleSmsJob(deps, n.token, row, settings, afterHours);
+    const customerSmsScheduled = smsResult === 'scheduled';
+    if (notifyResult === 'scheduled') {
+      return { status: 'scheduled', token: n.token, customerSmsScheduled };
+    }
     return { status: 'stored', token: n.token };
   } catch (e) {
     return { status: 'error', token: n.token, error: (e as Error).message };
@@ -294,17 +373,26 @@ export async function processCheckout(
         console.warn(`[checkout ${n.token}] telegram edit failed: ${edit.error}`);
       }
 
-      const customerSmsSent = await maybeSendCustomerSms(deps, ctx, settings, afterHours);
-      return { status: 'updated', token: n.token, afterHours, customerSmsSent };
+      const smsResult = await scheduleSmsJob(deps, n.token, row, settings, afterHours);
+      return {
+        status: 'updated',
+        token: n.token,
+        afterHours,
+        customerSmsScheduled: smsResult === 'scheduled',
+      };
     } catch (e) {
       return { status: 'error', token: n.token, error: (e as Error).message };
     }
   }
 
-  // No message yet: ensure a QStash job is scheduled (fallback for missed create).
+  // No message yet: ensure QStash jobs are scheduled (fallback for missed create).
   try {
-    const result = await scheduleNotifyJob(deps, n.token, row);
-    if (result === 'scheduled') return { status: 'scheduled', token: n.token };
+    const notifyResult = await scheduleNotifyJob(deps, n.token, row);
+    const smsResult = await scheduleSmsJob(deps, n.token, row, settings, afterHours);
+    const customerSmsScheduled = smsResult === 'scheduled';
+    if (notifyResult === 'scheduled') {
+      return { status: 'scheduled', token: n.token, customerSmsScheduled };
+    }
   } catch (e) {
     return { status: 'error', token: n.token, error: (e as Error).message };
   }

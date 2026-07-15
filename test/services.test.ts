@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { TelegramService } from '@/lib/services/telegram';
-import { TwilioService } from '@/lib/services/twilio';
+import { QuoService } from '@/lib/services/quo';
 import { NotificationService } from '@/lib/services/notification';
 import { getAdminAccessToken, _resetAdminTokenCache } from '@/lib/services/shopify';
 import { DEFAULT_SETTINGS } from '@/lib/settings-defaults';
@@ -114,50 +114,41 @@ describe('TelegramService (mocked API)', () => {
   });
 });
 
-describe('TwilioService (mocked API)', () => {
+describe('QuoService (mocked API)', () => {
   let fetchMock: ReturnType<typeof vi.fn>;
   beforeEach(() => {
     fetchMock = vi.fn(
-      async () => new Response(JSON.stringify({ sid: 'SM1', status: 'queued' }), { status: 201 })
+      async () =>
+        new Response(JSON.stringify({ data: { id: 'msg_1', status: 'queued' } }), { status: 202 })
     );
     vi.stubGlobal('fetch', fetchMock);
   });
   afterEach(() => vi.unstubAllGlobals());
 
-  it('sends MMS with Basic auth and MediaUrl', async () => {
-    const twilio = new TwilioService({
-      accountSid: 'AC123',
-      authToken: 'secret',
+  it('sends SMS with raw Authorization and JSON body', async () => {
+    const quo = new QuoService({
+      apiKey: 'quo-key',
       fromNumber: '+12065550000',
     });
-    const res = await twilio.sendMms('(786) 471-4417', 'hi there', 'https://blob.example/cart.png');
+    const res = await quo.sendSms('(786) 471-4417', 'hi there');
     expect(res.ok).toBe(true);
-    expect(res.sid).toBe('SM1');
+    expect(res.id).toBe('msg_1');
     const [url, init] = fetchMock.mock.calls[0];
-    expect(url).toBe('https://api.twilio.com/2010-04-01/Accounts/AC123/Messages.json');
-    const auth = (init as RequestInit).headers as Record<string, string>;
-    expect(auth.Authorization).toBe(`Basic ${Buffer.from('AC123:secret').toString('base64')}`);
-    const body = new URLSearchParams((init as RequestInit).body as string);
-    expect(body.get('To')).toBe('+17864714417');
-    expect(body.get('From')).toBe('+12065550000');
-    expect(body.get('Body')).toBe('hi there');
-    expect(body.get('MediaUrl')).toBe('https://blob.example/cart.png');
-  });
-
-  it('sends SMS only when mediaUrl is omitted', async () => {
-    const twilio = new TwilioService({
-      accountSid: 'AC123',
-      authToken: 'secret',
-      fromNumber: '+12065550000',
+    expect(url).toBe('https://api.quo.com/v1/messages');
+    const headers = (init as RequestInit).headers as Record<string, string>;
+    expect(headers.Authorization).toBe('quo-key');
+    expect(headers['Content-Type']).toBe('application/json');
+    const body = JSON.parse((init as RequestInit).body as string);
+    expect(body).toEqual({
+      content: 'hi there',
+      from: '+12065550000',
+      to: ['+17864714417'],
     });
-    await twilio.sendMms('+17864714417', 'text only');
-    const body = new URLSearchParams((fetchMock.mock.calls[0][1] as RequestInit).body as string);
-    expect(body.get('MediaUrl')).toBeNull();
   });
 
   it('fails cleanly when not configured', async () => {
-    const twilio = new TwilioService({ accountSid: '', authToken: '', fromNumber: '' });
-    const res = await twilio.sendMms('+17864714417', 'x');
+    const quo = new QuoService({ apiKey: '', fromNumber: '' });
+    const res = await quo.sendSms('+17864714417', 'x');
     expect(res.ok).toBe(false);
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -281,86 +272,47 @@ describe('NotificationService formatting', () => {
   });
 });
 
-describe('NotificationService customer MMS', () => {
+describe('NotificationService customer SMS', () => {
   let fetchMock: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     fetchMock = vi.fn(
-      async () => new Response(JSON.stringify({ sid: 'SM99', status: 'queued' }), { status: 201 })
+      async () =>
+        new Response(JSON.stringify({ data: { id: 'msg_99', status: 'queued' } }), { status: 202 })
     );
     vi.stubGlobal('fetch', fetchMock);
   });
   afterEach(() => vi.unstubAllGlobals());
 
-  it('uploads cart PNG and sends Twilio MMS with media URL', async () => {
-    fetchMock.mockImplementation(async (url: string) => {
-      if (String(url).includes('twilio.com')) {
-        return new Response(JSON.stringify({ sid: 'SM99', status: 'queued' }), { status: 201 });
-      }
-      return new Response(Buffer.from('fake-image'), {
-        status: 200,
-        headers: { 'content-type': 'image/jpeg' },
-      });
-    });
-
-    const generatePng = vi.fn(async () => Buffer.from('png'));
-    const uploadImage = vi.fn(async () => 'https://blob.vercel-storage.com/cart/abc123token.png');
-    const twilio = new TwilioService({
-      accountSid: 'AC123',
-      authToken: 'secret',
+  it('sends Quo SMS with rendered template body (no media)', async () => {
+    const quo = new QuoService({
+      apiKey: 'quo-key',
       fromNumber: '+12065550000',
     });
-    const svc = new NotificationService(
-      new TelegramService(''),
-      twilio,
-      generatePng,
-      uploadImage
-    );
+    const svc = new NotificationService(new TelegramService(''), quo);
 
     const ok = await svc.sendCustomerSms(ctx, { ...DEFAULT_SETTINGS, customer_sms_enabled: true });
     expect(ok).toBe(true);
-    expect(generatePng).toHaveBeenCalledOnce();
-    expect(uploadImage).toHaveBeenCalledWith(Buffer.from('png'), 'abc123token');
-    const twilioCall = fetchMock.mock.calls.find((c) => String(c[0]).includes('twilio.com'));
-    expect(twilioCall).toBeDefined();
-    const body = new URLSearchParams((twilioCall![1] as RequestInit).body as string);
-    expect(body.get('MediaUrl')).toBe('https://blob.vercel-storage.com/cart/abc123token.png');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('https://api.quo.com/v1/messages');
+    const body = JSON.parse((init as RequestInit).body as string);
+    expect(body.to).toEqual(['+17864714417']);
+    expect(body.from).toBe('+12065550000');
+    expect(body.content).toContain('Victor Finayev');
+    expect(body.content).toContain('2 item(s)');
+    expect(body.mediaUrl).toBeUndefined();
+    expect(body.MediaUrl).toBeUndefined();
   });
 
-  it('falls back to SMS-only when image generation fails', async () => {
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    fetchMock.mockImplementation(async (url: string) => {
-      if (String(url).includes('twilio.com')) {
-        return new Response(JSON.stringify({ sid: 'SM99', status: 'queued' }), { status: 201 });
-      }
-      return new Response(Buffer.from('fake-image'), {
-        status: 200,
-        headers: { 'content-type': 'image/jpeg' },
-      });
-    });
-
-    const generatePng = vi.fn(async () => {
-      throw new Error('satori failed');
-    });
-    const uploadImage = vi.fn();
-    const twilio = new TwilioService({
-      accountSid: 'AC123',
-      authToken: 'secret',
+  it('skips send when customer SMS is disabled', async () => {
+    const quo = new QuoService({
+      apiKey: 'quo-key',
       fromNumber: '+12065550000',
     });
-    const svc = new NotificationService(
-      new TelegramService(''),
-      twilio,
-      generatePng,
-      uploadImage
-    );
-
-    const ok = await svc.sendCustomerSms(ctx, { ...DEFAULT_SETTINGS, customer_sms_enabled: true });
-    expect(ok).toBe(true);
-    expect(uploadImage).not.toHaveBeenCalled();
-    const twilioCall = fetchMock.mock.calls.find((c) => String(c[0]).includes('twilio.com'));
-    const body = new URLSearchParams((twilioCall![1] as RequestInit).body as string);
-    expect(body.get('MediaUrl')).toBeNull();
-    warnSpy.mockRestore();
+    const svc = new NotificationService(new TelegramService(''), quo);
+    const ok = await svc.sendCustomerSms(ctx, { ...DEFAULT_SETTINGS, customer_sms_enabled: false });
+    expect(ok).toBe(false);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

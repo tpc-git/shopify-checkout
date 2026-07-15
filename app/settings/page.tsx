@@ -149,14 +149,13 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          <div className="section-label">Customer MMS (Twilio)</div>
+          <div className="section-label">Customer SMS (Quo)</div>
           <div className="set-grid">
             <div className="full">
               <label className="label">SMS message template</label>
               <textarea value={s.sms_template} onChange={(e) => set('sms_template', e.target.value)} />
               <div className="field-note">
-                Twilio credentials are configured via TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_FROM_NUMBER.
-                Cart images are uploaded to Vercel Blob (BLOB_READ_WRITE_TOKEN) and attached as MMS when possible.
+                Quo credentials are configured via QUO_API_KEY and QUO_FROM_NUMBER.
                 Template variables: {'{{customer_name}}'} {'{{company_name}}'} {'{{phone}}'} {'{{email}}'} {'{{total}}'} {'{{destination}}'} {'{{product_count}}'} {'{{checkout_url}}'}
               </div>
             </div>
@@ -167,7 +166,8 @@ export default function SettingsPage() {
             <div className="full">
               <p className="field-note" style={{ marginTop: 0 }}>
                 During business hours, Telegram alerts go to your sales managers so they can call the client.
-                After hours, managers still get Telegram, and the customer receives an MMS right away (if enabled below).
+                After hours, managers still get Telegram, and the customer receives an SMS after ~5 minutes
+                if the checkout is still unfinished (if enabled below).
               </p>
             </div>
             <label className="toggle-row">

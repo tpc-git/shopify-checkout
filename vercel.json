@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/delete-empty-checkouts",
+      "schedule": "0 6 * * *"
+    }
+  ]
+}

@@ -41,6 +41,7 @@ export interface CheckoutRow {
   telegram_chat_id: string | null;
   telegram_message_id: string | number | null;
   notify_job_scheduled_at: string | null;
+  sms_job_scheduled_at: string | null;
   items: string | null;
   created_at: string;
   updated_at: string;

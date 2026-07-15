@@ -9,30 +9,51 @@ function notifyDelaySeconds(): number {
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : 120;
 }
 
+function smsDelaySeconds(): number {
+  const raw = process.env.SMS_DELAY_SECONDS;
+  if (!raw) return 300;
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 300;
+}
+
 function qstashClient(): Client | null {
   const token = process.env.QSTASH_TOKEN;
   if (!token) return null;
   return new Client({ token });
 }
 
-function callbackUrl(): string | null {
+function appBaseUrl(): string | null {
   const base = process.env.APP_URL?.replace(/\/$/, '');
-  if (!base) return null;
-  return `${base}/api/qstash/notify`;
+  return base || null;
 }
 
 /** Schedule a delayed notification callback for this checkout token. */
 export async function publishNotifyJob(token: string): Promise<void> {
   const client = qstashClient();
-  const url = callbackUrl();
+  const base = appBaseUrl();
   if (!client) throw new Error('QSTASH_TOKEN not set');
-  if (!url) throw new Error('APP_URL not set');
+  if (!base) throw new Error('APP_URL not set');
 
   await client.publishJSON({
-    url,
+    url: `${base}/api/qstash/notify`,
     body: { token },
     delay: notifyDelaySeconds(),
     deduplicationId: token,
+  });
+}
+
+/** Schedule a delayed after-hours customer SMS callback for this checkout token. */
+export async function publishSmsJob(token: string): Promise<void> {
+  const client = qstashClient();
+  const base = appBaseUrl();
+  if (!client) throw new Error('QSTASH_TOKEN not set');
+  if (!base) throw new Error('APP_URL not set');
+
+  await client.publishJSON({
+    url: `${base}/api/qstash/sms`,
+    body: { token },
+    delay: smsDelaySeconds(),
+    deduplicationId: `sms-${token}`,
   });
 }
 
