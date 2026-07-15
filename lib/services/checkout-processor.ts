@@ -169,6 +169,8 @@ async function buildContext(
   const products = await deps.fetchProducts(m.items.map((it) => it.product_id));
   return {
     customer_name: m.customer_name,
+    first_name: m.first_name,
+    last_name: m.last_name,
     company_name: m.company_name,
     phone: m.phone,
     email: m.email,

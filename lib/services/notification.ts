@@ -9,6 +9,14 @@ import { QuoService } from './quo';
 
 const STOREFRONT = () => process.env.SHOPIFY_STOREFRONT_DOMAIN || 'tacoma-truckparts.com';
 
+/** Lowercase then capitalize first letter; missing/blank → "there" for SMS greetings. */
+export function formatSmsFirstName(raw: string | null | undefined): string {
+  const trimmed = raw?.trim();
+  if (!trimmed) return 'there';
+  const lower = trimmed.toLowerCase();
+  return lower.charAt(0).toUpperCase() + lower.slice(1);
+}
+
 export class NotificationService {
   constructor(
     private telegram: TelegramService = new TelegramService(),
@@ -66,6 +74,8 @@ export class NotificationService {
   renderSms(template: string, ctx: NotificationContext): string {
     const vars: Record<string, string> = {
       customer_name: ctx.customer_name ?? '',
+      first_name: formatSmsFirstName(ctx.first_name),
+      last_name: ctx.last_name?.trim() ?? '',
       company_name: ctx.company_name ?? '',
       phone: ctx.phone ?? '',
       email: ctx.email ?? '',

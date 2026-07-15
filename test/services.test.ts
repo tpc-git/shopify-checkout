@@ -8,14 +8,16 @@ import { toE164 } from '@/lib/util';
 import type { NotificationContext } from '@/lib/types';
 
 const ctx: NotificationContext = {
-  customer_name: 'Victor Finayev',
-  company_name: 'Orange Logistics',
-  phone: '+17864714417',
-  email: 'victor@example.com',
+  customer_name: 'John Doe',
+  first_name: 'John',
+  last_name: 'Doe',
+  company_name: 'Acme Logistics',
+  phone: '+15555550123',
+  email: 'john@example.com',
   subtotal: 4999.97,
   total: 5249.97,
-  full_address: '262 Tall Pines Rd, West Palm Beach, Florida, US, 33413',
-  destination: 'West Palm Beach, FL, US',
+  full_address: '123 Main St, Springfield, Illinois, US, 62701',
+  destination: 'Springfield, IL, US',
   product_count: 2,
   product_summary: [
     {
@@ -130,7 +132,7 @@ describe('QuoService (mocked API)', () => {
       apiKey: 'quo-key',
       fromNumber: '+12065550000',
     });
-    const res = await quo.sendSms('(786) 471-4417', 'hi there');
+    const res = await quo.sendSms('(555) 555-0123', 'hi there');
     expect(res.ok).toBe(true);
     expect(res.id).toBe('msg_1');
     const [url, init] = fetchMock.mock.calls[0];
@@ -142,13 +144,13 @@ describe('QuoService (mocked API)', () => {
     expect(body).toEqual({
       content: 'hi there',
       from: '+12065550000',
-      to: ['+17864714417'],
+      to: ['+15555550123'],
     });
   });
 
   it('fails cleanly when not configured', async () => {
     const quo = new QuoService({ apiKey: '', fromNumber: '' });
-    const res = await quo.sendSms('+17864714417', 'x');
+    const res = await quo.sendSms('+15555550123', 'x');
     expect(res.ok).toBe(false);
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -156,9 +158,9 @@ describe('QuoService (mocked API)', () => {
 
 describe('toE164', () => {
   it('normalizes US numbers to E.164', () => {
-    expect(toE164('7864714417')).toBe('+17864714417');
-    expect(toE164('+17864714417')).toBe('+17864714417');
-    expect(toE164('1-786-471-4417')).toBe('+17864714417');
+    expect(toE164('5555550123')).toBe('+15555550123');
+    expect(toE164('+15555550123')).toBe('+15555550123');
+    expect(toE164('1-555-555-0123')).toBe('+15555550123');
   });
 });
 
@@ -221,9 +223,9 @@ describe('NotificationService formatting', () => {
 
   it('builds a Telegram message with all required fields', () => {
     const msg = svc.formatTelegramMessage(ctx);
-    expect(msg).toContain('Victor Finayev');
-    expect(msg).toContain('Company: Orange Logistics');
-    expect(msg).toContain('victor@example.com');
+    expect(msg).toContain('John Doe');
+    expect(msg).toContain('Company: Acme Logistics');
+    expect(msg).toContain('john@example.com');
     expect(msg).toContain('$5,249.97');
     expect(msg).toContain('2 item(s)');
     expect(msg).toContain('[Bumper](https://tacoma-truckparts.com/products/bumper)');
@@ -234,8 +236,8 @@ describe('NotificationService formatting', () => {
 
   it('renders phone and address as monospace (tap-to-copy)', () => {
     const msg = svc.formatTelegramMessage(ctx);
-    expect(msg).toContain('Phone: `+17864714417`');
-    expect(msg).toContain('Address: `262 Tall Pines Rd, West Palm Beach, Florida, US, 33413`');
+    expect(msg).toContain('Phone: `+15555550123`');
+    expect(msg).toContain('Address: `123 Main St, Springfield, Illinois, US, 62701`');
   });
 
   it('shows a pending phone before the customer enters one', () => {
@@ -248,7 +250,7 @@ describe('NotificationService formatting', () => {
     expect(svc.formatTelegramMessage(ctx)).not.toContain('\u2705');
     const msg = svc.formatTelegramMessage({ ...ctx, checkout_completed: true });
     expect(msg).toContain('\u2705 Order completed');
-    expect(msg).toContain('Customer: Victor Finayev');
+    expect(msg).toContain('Customer: John Doe');
     expect(msg).toContain('Truck Parts ($5,249.97) \u2014 2 item(s):');
     expect(msg).not.toContain('New checkout on');
     expect(msg).not.toContain('Company:');
@@ -266,9 +268,21 @@ describe('NotificationService formatting', () => {
 
   it('renders the SMS template variables', () => {
     const out = svc.renderSms(DEFAULT_SETTINGS.sms_template, ctx);
-    expect(out).toContain('Victor Finayev');
+    expect(out).toContain('Hi John,');
     expect(out).toContain('2 item(s)');
     expect(out).toContain('$5,249.97');
+  });
+
+  it('title-cases first_name and falls back to "there" when missing', () => {
+    expect(svc.renderSms('Hello {{first_name}}!', { ...ctx, first_name: 'JOHN' })).toBe(
+      'Hello John!'
+    );
+    expect(svc.renderSms('Hello {{first_name}}!', { ...ctx, first_name: null })).toBe(
+      'Hello there!'
+    );
+    expect(svc.renderSms('Hello {{first_name}} {{last_name}}!', { ...ctx, first_name: '  jane ', last_name: 'Smith' })).toBe(
+      'Hello Jane Smith!'
+    );
   });
 });
 
@@ -297,9 +311,9 @@ describe('NotificationService customer SMS', () => {
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe('https://api.quo.com/v1/messages');
     const body = JSON.parse((init as RequestInit).body as string);
-    expect(body.to).toEqual(['+17864714417']);
+    expect(body.to).toEqual(['+15555550123']);
     expect(body.from).toBe('+12065550000');
-    expect(body.content).toContain('Victor Finayev');
+    expect(body.content).toContain('Hi John,');
     expect(body.content).toContain('2 item(s)');
     expect(body.mediaUrl).toBeUndefined();
     expect(body.MediaUrl).toBeUndefined();

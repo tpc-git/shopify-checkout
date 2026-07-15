@@ -66,6 +66,8 @@ export interface AppSettings {
 // Data assembled for a notification message.
 export interface NotificationContext {
   customer_name: string | null;
+  first_name: string | null;
+  last_name: string | null;
   company_name: string | null;
   phone: string | null;
   email: string | null;
