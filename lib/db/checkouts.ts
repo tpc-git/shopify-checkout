@@ -140,6 +140,7 @@ export interface ListParams {
   afterHours?: boolean;
   /** Required when filtering by afterHours — evaluates created_at in BUSINESS_TIMEZONE. */
   businessHours?: Pick<AppSettings, 'working_days' | 'working_hours_start' | 'working_hours_end'>;
+  /** Calendar dates (YYYY-MM-DD) interpreted in BUSINESS_TIMEZONE. */
   dateFrom?: string;
   dateTo?: string;
   sort?: string;
@@ -199,16 +200,18 @@ export async function listCheckouts(
     i += 3;
   }
   if (params.dateFrom) {
-    where.push(`c.created_at >= $${i++}`);
+    where.push(`c.created_at >= ($${i++}::date AT TIME ZONE '${BUSINESS_TIMEZONE}')`);
     args.push(params.dateFrom);
   }
   if (params.dateTo) {
-    where.push(`c.created_at < ($${i++}::date + INTERVAL '1 day')`);
+    where.push(
+      `c.created_at < (($${i++}::date + INTERVAL '1 day') AT TIME ZONE '${BUSINESS_TIMEZONE}')`
+    );
     args.push(params.dateTo);
   }
 
   const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
-  const sortCol = SORTABLE[params.sort ?? 'updated_at'] ?? 'c.updated_at';
+  const sortCol = SORTABLE[params.sort ?? 'created_at'] ?? 'c.created_at';
   const dir = params.dir === 'asc' ? 'ASC' : 'DESC';
 
   const page = Math.max(1, params.page ?? 1);

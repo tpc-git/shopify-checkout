@@ -1,5 +1,6 @@
 // Small shared helpers for normalization and formatting.
 
+import { BUSINESS_TIMEZONE } from '@/lib/services/business-hours';
 import type { CheckoutItem } from '@/lib/types';
 
 // Trim a value to a string; empty / whitespace-only becomes null.
@@ -38,6 +39,7 @@ export function fmtDateTime(iso: string | null | undefined): string {
   if (!iso) return '';
   try {
     return new Date(iso).toLocaleString('en-US', {
+      timeZone: BUSINESS_TIMEZONE,
       month: 'short',
       day: 'numeric',
       hour: '2-digit',

@@ -37,7 +37,7 @@ export default function Dashboard() {
   const [afterHours, setAfterHours] = useState<TriState>('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-  const [sort, setSort] = useState('updated_at');
+  const [sort, setSort] = useState('created_at');
   const [dir, setDir] = useState<'asc' | 'desc'>('desc');
   const [page, setPage] = useState(1);
   const pageSize = 25;
