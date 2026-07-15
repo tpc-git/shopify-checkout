@@ -25,7 +25,7 @@ import {
   upsertCheckout,
 } from '@/lib/db/checkouts';
 import { getSettings } from '@/lib/db/settings';
-import { isSmsRecipientAllowed } from '@/lib/sms-allowlist';
+import { smsOverrideTo } from '@/lib/sms-override';
 import { parseItems } from '@/lib/util';
 import {
   createIgnoreReason,
@@ -207,8 +207,7 @@ async function scheduleNotifyJob(
 
 /**
  * Claim and publish a delayed customer-SMS job when after hours and SMS enabled.
- * Skipped when already sent, already scheduled, in hours, disabled, or (TEMPORARY)
- * phone is not on SMS_ALLOWLIST when that env is set.
+ * Skipped when already sent, already scheduled, in hours, or disabled.
  */
 async function scheduleSmsJob(
   deps: ProcessorDeps,
@@ -219,8 +218,6 @@ async function scheduleSmsJob(
 ): Promise<'scheduled' | 'already_scheduled' | 'skipped'> {
   if (!afterHours || !settings.customer_sms_enabled) return 'skipped';
   if (row?.customer_sms_sent_at) return 'skipped';
-  // TEMPORARY: SMS_ALLOWLIST — delete isSmsRecipientAllowed check when rolling out broadly.
-  if (!isSmsRecipientAllowed(row?.phone)) return 'skipped';
   if (row?.sms_job_scheduled_at) return 'already_scheduled';
   const claimed = await deps.claimSmsJob(token);
   if (!claimed) return 'already_scheduled';
@@ -297,15 +294,11 @@ export async function sendScheduledCustomerSms(
   const m = rowToNormalized(row);
   if (m.checkout_completed) return { status: 'skipped', reason: 'checkout completed' };
 
-  if (!m.phone) {
+  // TEMPORARY: SMS_OVERRIDE_TO lets sends proceed without a checkout phone.
+  if (!m.phone && !smsOverrideTo()) {
     // Allow a later update to schedule again once a phone is present.
     await deps.releaseSmsJob(token).catch(() => {});
     return { status: 'skipped', reason: 'no phone' };
-  }
-
-  // TEMPORARY: SMS_ALLOWLIST — delete this block when rolling out broadly.
-  if (!isSmsRecipientAllowed(m.phone)) {
-    return { status: 'skipped', reason: 'phone not on sms allowlist' };
   }
 
   if (!(await deps.claimCustomerSms(token))) {

@@ -308,24 +308,6 @@ describe('processCheckout (update) pipeline', () => {
     expect(notifier.smsCalls).toHaveLength(0);
   });
 
-  it('does not schedule SMS when phone is outside SMS_ALLOWLIST', async () => {
-    const store = new InMemoryStore();
-    const notifier = new FakeNotifier();
-    const publishSms = vi.fn(async () => {});
-    const deps = makeDeps(store, notifier, {
-      getSettings: async () => WEEKDAYS_ONLY,
-      now: () => SUNDAY,
-      publishSmsJob: publishSms,
-    });
-    process.env.SMS_ALLOWLIST = '+12065550999';
-
-    const out = await processCreateCheckout(webWithPhone, deps);
-    expect(out).toMatchObject({ status: 'scheduled', customerSmsScheduled: false });
-    expect(publishSms).not.toHaveBeenCalled();
-
-    delete process.env.SMS_ALLOWLIST;
-  });
-
   it('sends scheduled SMS when still unfinished with phone; skips when completed', async () => {
     const store = new InMemoryStore();
     const notifier = new FakeNotifier();

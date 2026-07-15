@@ -319,6 +319,20 @@ describe('NotificationService customer SMS', () => {
     expect(body.MediaUrl).toBeUndefined();
   });
 
+  it('redirects delivery to SMS_OVERRIDE_TO when set', async () => {
+    process.env.SMS_OVERRIDE_TO = '+19737766152';
+    const quo = new QuoService({
+      apiKey: 'quo-key',
+      fromNumber: '+12065550000',
+    });
+    const svc = new NotificationService(new TelegramService(''), quo);
+    const ok = await svc.sendCustomerSms(ctx, { ...DEFAULT_SETTINGS, customer_sms_enabled: true });
+    expect(ok).toBe(true);
+    const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
+    expect(body.to).toEqual(['+19737766152']);
+    delete process.env.SMS_OVERRIDE_TO;
+  });
+
   it('skips send when customer SMS is disabled', async () => {
     const quo = new QuoService({
       apiKey: 'quo-key',

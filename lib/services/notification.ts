@@ -3,6 +3,7 @@
 // decides WHETHER and WHEN to send.
 
 import { appCheckoutUrl, money } from '@/lib/util';
+import { resolveSmsRecipient } from '@/lib/sms-override';
 import type { AppSettings, NotificationContext } from '@/lib/types';
 import { TelegramService, type TelegramEditResult, type TelegramSendResult } from './telegram';
 import { QuoService } from './quo';
@@ -107,11 +108,13 @@ export class NotificationService {
   }
 
   // Customer SMS via Quo (text only; cart MMS image pipeline is disabled for now).
+  // TEMPORARY: SMS_OVERRIDE_TO redirects delivery; remove resolveSmsRecipient when done testing.
   async sendCustomerSms(ctx: NotificationContext, settings: AppSettings): Promise<boolean> {
     if (!settings.customer_sms_enabled) return false;
-    if (!ctx.phone) return false;
+    const to = resolveSmsRecipient(ctx.phone);
+    if (!to) return false;
     const body = this.renderSms(settings.sms_template, ctx);
-    const result = await this.quo.sendSms(ctx.phone, body);
+    const result = await this.quo.sendSms(to, body);
     return result.ok;
   }
 }
