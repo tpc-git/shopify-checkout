@@ -16,6 +16,20 @@ function smsDelaySeconds(): number {
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : 300;
 }
 
+export { notifyDelaySeconds, smsDelaySeconds };
+
+/** True when now is at/after created_at + delaySeconds (created_at-anchored window). */
+export function isPastCreatedAtWindow(
+  createdAt: string | null | undefined,
+  delaySeconds: number,
+  now: Date = new Date()
+): boolean {
+  if (!createdAt) return false;
+  const createdMs = new Date(createdAt).getTime();
+  if (!Number.isFinite(createdMs)) return false;
+  return now.getTime() >= createdMs + delaySeconds * 1000;
+}
+
 function qstashClient(): Client | null {
   const token = process.env.QSTASH_TOKEN;
   if (!token) return null;

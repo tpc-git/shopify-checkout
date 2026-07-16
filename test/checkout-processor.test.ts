@@ -341,44 +341,100 @@ describe('processCheckout (update) pipeline', () => {
     expect(notifier2.smsCalls).toHaveLength(0);
   });
 
-  it('releases SMS job when no phone yet; reschedules on later update with phone', async () => {
+  it('skips SMS at timer without phone; catch-up sends immediately after window when phone arrives', async () => {
     const store = new InMemoryStore();
     const notifier = new FakeNotifier();
     const publishSms = vi.fn(async () => {});
+    const created = new Date('2026-06-28T11:00:00Z');
+    const afterSmsWindow = new Date('2026-06-28T11:06:00Z'); // +6m > 5m SMS window
     const deps = makeDeps(store, notifier, {
       getSettings: async () => WEEKDAYS_ONLY,
-      now: () => SUNDAY,
+      now: () => created,
       publishSmsJob: publishSms,
     });
 
     await processCreateCheckout(noPhone, deps);
     expect(publishSms).toHaveBeenCalledOnce();
+    store.checkouts.get(noPhone.token)!.created_at = created.toISOString();
 
-    const first = await sendFirstNotification(noPhone.token, deps);
+    const first = await sendFirstNotification(noPhone.token, {
+      ...deps,
+      now: () => afterSmsWindow,
+    });
     expect(first).toMatchObject({ status: 'sent' });
     expect(notifier.smsCalls).toHaveLength(0);
 
-    const skipped = await sendScheduledCustomerSms(noPhone.token, deps);
+    const skipped = await sendScheduledCustomerSms(noPhone.token, {
+      ...deps,
+      now: () => afterSmsWindow,
+    });
     expect(skipped).toMatchObject({ status: 'skipped', reason: 'no phone' });
-    expect(store.checkouts.get(noPhone.token)?.sms_job_scheduled_at).toBeNull();
+    // Job stamp kept so we do not schedule another delayed QStash SMS.
+    expect(store.checkouts.get(noPhone.token)?.sms_job_scheduled_at).toBeTruthy();
 
     const withPhone = {
       ...noPhone,
       phone: '+12065550123',
       shipping_address: { ...noPhone.shipping_address, phone: '+12065550123' },
     };
-    const second = await processCheckout(withPhone, deps);
-    expect(second).toMatchObject({ status: 'updated', customerSmsScheduled: true });
-    expect(publishSms).toHaveBeenCalledTimes(2);
-    expect(notifier.smsCalls).toHaveLength(0);
-
-    const third = await processCheckout(withPhone, deps);
-    expect(third).toMatchObject({ status: 'updated', customerSmsScheduled: false });
-    expect(publishSms).toHaveBeenCalledTimes(2);
-
-    const sent = await sendScheduledCustomerSms(noPhone.token, deps);
-    expect(sent).toMatchObject({ status: 'sent' });
+    const second = await processCheckout(withPhone, {
+      ...deps,
+      now: () => afterSmsWindow,
+    });
+    expect(second).toMatchObject({
+      status: 'updated',
+      customerSmsScheduled: false,
+      customerSmsSent: true,
+    });
+    expect(publishSms).toHaveBeenCalledOnce(); // no second delayed schedule
     expect(notifier.smsCalls).toHaveLength(1);
+
+    const third = await processCheckout(withPhone, {
+      ...deps,
+      now: () => afterSmsWindow,
+    });
+    expect(third).toMatchObject({
+      status: 'updated',
+      customerSmsScheduled: false,
+      customerSmsSent: false,
+    });
+    expect(notifier.smsCalls).toHaveLength(1);
+  });
+
+  it('catch-up sends Telegram immediately when email arrives after the notify window', async () => {
+    const store = new InMemoryStore();
+    const notifier = new FakeNotifier();
+    const publishNotify = vi.fn(async () => {});
+    const created = new Date('2026-06-28T11:00:00Z');
+    const afterNotifyWindow = new Date('2026-06-28T11:03:00Z'); // +3m > 2m
+    const anonymous = { ...noPhone, email: null };
+    const deps = makeDeps(store, notifier, {
+      getSettings: async () => WEEKDAYS_ONLY,
+      now: () => created,
+      publishNotifyJob: publishNotify,
+    });
+
+    await processCreateCheckout(anonymous, deps);
+    expect(publishNotify).toHaveBeenCalledOnce();
+    store.checkouts.get(anonymous.token)!.created_at = created.toISOString();
+
+    const skipped = await sendFirstNotification(anonymous.token, {
+      ...deps,
+      now: () => afterNotifyWindow,
+    });
+    expect(skipped).toMatchObject({ status: 'skipped', reason: 'no email or completed' });
+
+    const withEmail = { ...anonymous, email: 'late@example.com' };
+    const catchUp = await processCheckout(withEmail, {
+      ...deps,
+      now: () => afterNotifyWindow,
+    });
+    expect(catchUp).toMatchObject({
+      status: 'updated',
+      telegramCatchUpSent: true,
+    });
+    expect(notifier.internalCalls).toHaveLength(1);
+    expect(store.checkouts.get(anonymous.token)?.telegram_message_id).toBe(42);
   });
 });
 

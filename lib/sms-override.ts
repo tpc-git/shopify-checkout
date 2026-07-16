@@ -1,6 +1,7 @@
 // TEMPORARY — delete this file and its call sites after SMS rollout testing.
-// When SMS_OVERRIDE_TO is set (E.164), every customer SMS is delivered to that
-// number instead of the checkout phone. When unset, normal recipient is used.
+// When SMS_OVERRIDE_TO is set (E.164), qualifying customer SMS is delivered to
+// that number instead of the checkout phone. It does NOT bypass send gates:
+// after-hours, enabled, unfinished, and a real checkout phone are still required.
 
 import { toE164 } from '@/lib/util';
 
@@ -11,7 +12,13 @@ export function smsOverrideTo(): string | null {
   return toE164(raw);
 }
 
-/** Resolve who should receive the SMS (override wins when set). */
+/**
+ * Resolve who should receive the SMS.
+ * Requires a checkout phone to qualify; override only redirects delivery.
+ */
 export function resolveSmsRecipient(checkoutPhone: string | null | undefined): string | null {
-  return smsOverrideTo() ?? (checkoutPhone ? toE164(checkoutPhone) ?? checkoutPhone : null);
+  if (!checkoutPhone) return null;
+  const override = smsOverrideTo();
+  if (override) return override;
+  return toE164(checkoutPhone) ?? checkoutPhone;
 }

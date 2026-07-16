@@ -1,15 +1,12 @@
 // CheckoutProcessor: the single home for all checkout business rules.
 //
-// Pipeline (update webhook):
-//   normalize -> hard-ignore -> upsert -> message exists? edit in place
-//   : schedule QStash jobs if not yet scheduled -> stored/scheduled
+// Windows are anchored on checkout created_at:
+//   Telegram: created_at + NOTIFY_DELAY_SECONDS (default 2m) — trigger: email
+//   SMS:      created_at + SMS_DELAY_SECONDS (default 5m) — trigger: phone
 //
-// Pipeline (create webhook):
-//   normalize -> light ignore -> upsert -> schedule notify + after-hours SMS jobs
-//
-// First Telegram send happens only in the QStash notify callback
-// (T+NOTIFY_DELAY_SECONDS). Customer SMS is a separate QStash job
-// (T+SMS_DELAY_SECONDS, default 5 min) and re-checks unfinished/eligible at fire time.
+// QStash jobs fire at those delays after create. If the timer runs out without
+// trigger data, the send is skipped. If a later webhook brings the trigger and
+// the notification was not sent yet (and the window has passed), send immediately.
 
 import {
   claimCustomerSms,
@@ -25,7 +22,6 @@ import {
   upsertCheckout,
 } from '@/lib/db/checkouts';
 import { getSettings } from '@/lib/db/settings';
-import { smsOverrideTo } from '@/lib/sms-override';
 import { parseItems } from '@/lib/util';
 import {
   createIgnoreReason,
@@ -37,7 +33,13 @@ import {
 } from './shopify';
 import { isAfterHours } from './business-hours';
 import { NotificationService } from './notification';
-import { publishNotifyJob, publishSmsJob } from './qstash';
+import {
+  isPastCreatedAtWindow,
+  notifyDelaySeconds,
+  publishNotifyJob,
+  publishSmsJob,
+  smsDelaySeconds,
+} from './qstash';
 import type {
   AppSettings,
   CheckoutRow,
@@ -50,7 +52,14 @@ export type ProcessOutcome =
   | { status: 'ignored'; reason: string }
   | { status: 'stored'; token: string }
   | { status: 'scheduled'; token: string; customerSmsScheduled?: boolean }
-  | { status: 'updated'; token: string; afterHours: boolean; customerSmsScheduled: boolean }
+  | {
+      status: 'updated';
+      token: string;
+      afterHours: boolean;
+      customerSmsScheduled: boolean;
+      customerSmsSent: boolean;
+      telegramCatchUpSent?: boolean;
+    }
   | { status: 'error'; token: string; error: string };
 
 export type SendFirstOutcome =
@@ -207,7 +216,7 @@ async function scheduleNotifyJob(
 
 /**
  * Claim and publish a delayed customer-SMS job when after hours and SMS enabled.
- * Skipped when already sent, already scheduled, in hours, or disabled.
+ * Only used while still inside the created_at + SMS_DELAY window.
  */
 async function scheduleSmsJob(
   deps: ProcessorDeps,
@@ -230,6 +239,57 @@ async function scheduleSmsJob(
   }
 }
 
+/**
+ * After the SMS window: send immediately if checkout phone is present and
+ * not yet sent. Inside the window: schedule the delayed job if needed.
+ */
+async function catchUpOrScheduleSms(
+  deps: ProcessorDeps,
+  token: string,
+  row: CheckoutRow | null,
+  merged: NormalizedCheckout,
+  settings: AppSettings,
+  afterHours: boolean
+): Promise<{ scheduled: boolean; sent: boolean }> {
+  if (!afterHours || !settings.customer_sms_enabled) return { scheduled: false, sent: false };
+  if (row?.customer_sms_sent_at) return { scheduled: false, sent: false };
+
+  const past = isPastCreatedAtWindow(row?.created_at, smsDelaySeconds(), deps.now());
+
+  if (past) {
+    if (!merged.phone) return { scheduled: false, sent: false };
+    const outcome = await sendScheduledCustomerSms(token, deps);
+    return { scheduled: false, sent: outcome.status === 'sent' };
+  }
+
+  const result = await scheduleSmsJob(deps, token, row, settings, afterHours);
+  return { scheduled: result === 'scheduled', sent: false };
+}
+
+/**
+ * After the Telegram window: send immediately if email is present and message
+ * not yet sent. Inside the window: schedule the delayed job if needed.
+ */
+async function catchUpOrScheduleTelegram(
+  deps: ProcessorDeps,
+  token: string,
+  row: CheckoutRow | null,
+  merged: NormalizedCheckout
+): Promise<{ scheduled: boolean; sent: boolean }> {
+  if (row?.telegram_message_id != null) return { scheduled: false, sent: false };
+
+  const past = isPastCreatedAtWindow(row?.created_at, notifyDelaySeconds(), deps.now());
+
+  if (past) {
+    if (!shouldNotify(merged)) return { scheduled: false, sent: false };
+    const outcome = await sendFirstNotification(token, deps);
+    return { scheduled: false, sent: outcome.status === 'sent' };
+  }
+
+  const result = await scheduleNotifyJob(deps, token, row);
+  return { scheduled: result === 'scheduled', sent: false };
+}
+
 /** QStash callback: send the first group message from the latest row state. */
 export async function sendFirstNotification(
   token: string,
@@ -242,7 +302,7 @@ export async function sendFirstNotification(
   if (row.telegram_message_id != null) return { status: 'skipped', reason: 'message already sent' };
 
   const m = rowToNormalized(row);
-  if (!shouldNotify(m)) return { status: 'skipped', reason: 'no contact info or completed' };
+  if (!shouldNotify(m)) return { status: 'skipped', reason: 'no email or completed' };
 
   const claimed = await deps.claimNotification(token);
   if (!claimed) return { status: 'skipped', reason: 'already claimed' };
@@ -270,8 +330,9 @@ export async function sendFirstNotification(
 }
 
 /**
- * QStash SMS callback: send after-hours customer SMS from the latest row state
- * if the checkout is still unfinished and eligible.
+ * QStash SMS callback / catch-up: send after-hours customer SMS from the latest
+ * row if unfinished and a checkout phone is present. SMS_OVERRIDE_TO only
+ * redirects delivery; it does not skip the phone requirement.
  */
 export async function sendScheduledCustomerSms(
   token: string,
@@ -294,10 +355,9 @@ export async function sendScheduledCustomerSms(
   const m = rowToNormalized(row);
   if (m.checkout_completed) return { status: 'skipped', reason: 'checkout completed' };
 
-  // TEMPORARY: SMS_OVERRIDE_TO lets sends proceed without a checkout phone.
-  if (!m.phone && !smsOverrideTo()) {
-    // Allow a later update to schedule again once a phone is present.
-    await deps.releaseSmsJob(token).catch(() => {});
+  // No checkout phone: skip. Keep sms_job_scheduled_at so we do not enqueue
+  // another delayed job; catch-up sends immediately when phone arrives.
+  if (!m.phone) {
     return { status: 'skipped', reason: 'no phone' };
   }
 
@@ -381,25 +441,41 @@ export async function processCheckout(
         console.warn(`[checkout ${n.token}] telegram edit failed: ${edit.error}`);
       }
 
-      const smsResult = await scheduleSmsJob(deps, n.token, row, settings, afterHours);
+      const sms = await catchUpOrScheduleSms(deps, n.token, row, merged, settings, afterHours);
       return {
         status: 'updated',
         token: n.token,
         afterHours,
-        customerSmsScheduled: smsResult === 'scheduled',
+        customerSmsScheduled: sms.scheduled,
+        customerSmsSent: sms.sent,
       };
     } catch (e) {
       return { status: 'error', token: n.token, error: (e as Error).message };
     }
   }
 
-  // No message yet: ensure QStash jobs are scheduled (fallback for missed create).
+  // No Telegram message yet: schedule within window, or catch up immediately after.
   try {
-    const notifyResult = await scheduleNotifyJob(deps, n.token, row);
-    const smsResult = await scheduleSmsJob(deps, n.token, row, settings, afterHours);
-    const customerSmsScheduled = smsResult === 'scheduled';
-    if (notifyResult === 'scheduled') {
-      return { status: 'scheduled', token: n.token, customerSmsScheduled };
+    const telegram = await catchUpOrScheduleTelegram(deps, n.token, row, merged);
+    const latest = (await deps.getNotificationState(n.token)) ?? row;
+    const sms = await catchUpOrScheduleSms(deps, n.token, latest, merged, settings, afterHours);
+
+    if (telegram.scheduled) {
+      return {
+        status: 'scheduled',
+        token: n.token,
+        customerSmsScheduled: sms.scheduled,
+      };
+    }
+    if (telegram.sent || sms.sent || sms.scheduled) {
+      return {
+        status: 'updated',
+        token: n.token,
+        afterHours,
+        customerSmsScheduled: sms.scheduled,
+        customerSmsSent: sms.sent,
+        telegramCatchUpSent: telegram.sent,
+      };
     }
   } catch (e) {
     return { status: 'error', token: n.token, error: (e as Error).message };

@@ -156,7 +156,7 @@ export default function SettingsPage() {
               <textarea value={s.sms_template} onChange={(e) => set('sms_template', e.target.value)} />
               <div className="field-note">
                 Quo credentials are configured via QUO_API_KEY and QUO_FROM_NUMBER.
-                If SMS_OVERRIDE_TO is set, every customer SMS is delivered to that number (temporary test redirect).
+                If SMS_OVERRIDE_TO is set, qualifying SMS is redirected to that number (checkout phone still required).
                 Template variables: {'{{first_name}}'} {'{{last_name}}'} {'{{customer_name}}'} {'{{company_name}}'} {'{{phone}}'} {'{{email}}'} {'{{total}}'} {'{{destination}}'} {'{{product_count}}'} {'{{checkout_url}}'}
                 Missing {'{{first_name}}'} becomes "there" (e.g. "Hi there,"). First name is title-cased.
               </div>
@@ -169,7 +169,8 @@ export default function SettingsPage() {
               <p className="field-note" style={{ marginTop: 0 }}>
                 During business hours, Telegram alerts go to your sales managers so they can call the client.
                 After hours, managers still get Telegram, and the customer receives an SMS after ~5 minutes
-                if the checkout is still unfinished (if enabled below).
+                from checkout creation if still unfinished (if enabled below). If the phone arrives
+                after that window and SMS was not sent yet, it is sent immediately.
               </p>
             </div>
             <label className="toggle-row">

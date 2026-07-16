@@ -178,9 +178,10 @@ export function createIgnoreReason(n: NormalizedCheckout): string | null {
 // Email is enough to post the first message; the phone (and the completed
 // badge) arrive later as in-place edits. Completed checkouts never start a
 // new message. (Once-only is enforced separately by the atomic DB claim.)
+/** Telegram first-send trigger: unfinished checkout with an email. */
 export function shouldNotify(n: NormalizedCheckout): boolean {
   if (n.checkout_completed) return false;
-  if (!n.phone && !n.email) return false;
+  if (!n.email) return false;
   return true;
 }
 

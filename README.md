@@ -30,38 +30,22 @@ lib/db/*                             ->  Neon repositories (checkouts, settings)
 ### Processing pipeline
 
 ```
-checkouts/create -> upsert -> schedule notify job (+ after-hours SMS job)
-checkouts/update -> upsert -> message exists? edit in place : ensure jobs scheduled
-QStash /notify   -> read latest row -> send first Telegram group message
-QStash /sms      -> read latest row -> send Quo SMS if still unfinished + eligible
+checkouts/create -> upsert -> schedule notify (+ after-hours SMS) from created_at
+checkouts/update -> upsert -> edit Telegram if sent; catch up / schedule if needed
+QStash /notify   -> created_at + NOTIFY_DELAY (email required) or skip
+QStash /sms      -> created_at + SMS_DELAY (phone required) or skip
 ```
 
-- **Delayed first notification:** `checkouts/create` upserts the snapshot and
-  schedules one QStash notify job per checkout (`notify_job_scheduled_at` atomic claim +
-  `deduplicationId: token`). The callback at T+`NOTIFY_DELAY_SECONDS` (default 2 min)
-  reads the latest row and sends the first group message.
-- **Delayed after-hours SMS:** when the checkout arrives after hours (and SMS is enabled),
-  a separate QStash SMS job is scheduled (`sms_job_scheduled_at`, `deduplicationId: sms-{token}`,
-  delay `SMS_DELAY_SECONDS`, default 5 min). The callback re-checks eligibility and skips if
-  the checkout completed; if there is still no phone, the SMS job claim is released so a later
-  update can reschedule.
-- **Update webhook:** continuously upserts the snapshot. If a Telegram message
-  already exists, it is edited in place (phone arrives, totals change, completed
-  badge). Edit failures are logged and skipped (no re-send). If no message yet
-  and no job was scheduled (missed create), the update path schedules jobs as
-  a fallback.
-- **One live Telegram message per checkout:** `telegram_chat_id` +
-  `telegram_message_id` on the row. Customer SMS has its own once-only send claim
-  (`customer_sms_sent_at`).
-- **Always 200** on Shopify webhooks; QStash callbacks return 200 on intentional
-  skips and 500 on transient failures (QStash retries).
+Windows are **anchored on `created_at`**. If the timer fires without trigger data
+(email for Telegram, phone for SMS), the send is skipped. If a later webhook
+brings the trigger and the notification was never sent (window already past),
+the update path sends **immediately** — it does not start a new delay.
 
 ### After-hours handling
 
 If a checkout arrives outside configured business hours:
-- the internal team is notified via Telegram when the notify callback fires,
-- the customer is scheduled an SMS ~5 minutes later (if enabled); at fire time the
-  SMS is sent only if the checkout is still unfinished and a phone is present.
+- Telegram fires at `created_at + NOTIFY_DELAY` when an **email** is present (else skip; catch up immediately when email arrives later),
+- Customer SMS fires at `created_at + SMS_DELAY` when a **phone** is present (else skip; catch up immediately when phone arrives later).
 
 During business hours, only Telegram alerts are sent so sales managers can call
 the client.
@@ -130,7 +114,7 @@ npm test
 | `QSTASH_NEXT_SIGNING_KEY` | for QStash | Key rotation support |
 | `NOTIFY_DELAY_SECONDS` | optional | Delay before first Telegram notification (default `120`) |
 | `SMS_DELAY_SECONDS` | optional | Delay before after-hours customer SMS (default `300`) |
-| `SMS_OVERRIDE_TO` | temporary | E.164 number that receives all customer SMS; unset = use checkout phone |
+| `SMS_OVERRIDE_TO` | temporary | Redirect delivery of qualifying SMS to this E.164; unset = checkout phone. Does not bypass phone/after-hours gates |
 
 \* Either provide `SHOPIFY_API_KEY` + `SHOPIFY_API_SECRET` (preferred) **or** a
 static `SHOPIFY_ADMIN_ACCESS_TOKEN`.
