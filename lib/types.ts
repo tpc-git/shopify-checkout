@@ -59,7 +59,6 @@ export interface AppSettings {
   working_hours_start: string; // "HH:MM"
   working_hours_end: string; // "HH:MM"
   telegram_group_chat_id: string;
-  sms_template: string;
   customer_sms_enabled: boolean;
 }
 

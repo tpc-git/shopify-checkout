@@ -7,16 +7,15 @@ import { resolveSmsRecipient } from '@/lib/sms-override';
 import type { AppSettings, NotificationContext } from '@/lib/types';
 import { TelegramService, type TelegramEditResult, type TelegramSendResult } from './telegram';
 import { QuoService } from './quo';
+import {
+  BASE_SMS_TEMPLATE,
+  formatSmsFirstName,
+  generatePersonalizedSms,
+} from './openai-sms';
+
+export { formatSmsFirstName, BASE_SMS_TEMPLATE };
 
 const STOREFRONT = () => process.env.SHOPIFY_STOREFRONT_DOMAIN || 'tacoma-truckparts.com';
-
-/** Lowercase then capitalize first letter; missing/blank → "there" for SMS greetings. */
-export function formatSmsFirstName(raw: string | null | undefined): string {
-  const trimmed = raw?.trim();
-  if (!trimmed) return 'there';
-  const lower = trimmed.toLowerCase();
-  return lower.charAt(0).toUpperCase() + lower.slice(1);
-}
 
 export class NotificationService {
   constructor(
@@ -108,12 +107,14 @@ export class NotificationService {
   }
 
   // Customer SMS via Quo (text only; cart MMS image pipeline is disabled for now).
+  // Body is OpenAI-personalized from product context; falls back to BASE_SMS_TEMPLATE.
   // TEMPORARY: SMS_OVERRIDE_TO redirects delivery; remove resolveSmsRecipient when done testing.
   async sendCustomerSms(ctx: NotificationContext, settings: AppSettings): Promise<boolean> {
     if (!settings.customer_sms_enabled) return false;
     const to = resolveSmsRecipient(ctx.phone);
     if (!to) return false;
-    const body = this.renderSms(settings.sms_template, ctx);
+    const generated = await generatePersonalizedSms(ctx);
+    const body = generated ?? this.renderSms(BASE_SMS_TEMPLATE, ctx);
     const result = await this.quo.sendSms(to, body);
     return result.ok;
   }

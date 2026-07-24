@@ -30,7 +30,6 @@ function rowsToSettings(map: Record<string, string>): AppSettings {
     telegram_group_chat_id: (
       map.telegram_group_chat_id ?? d.telegram_group_chat_id
     ).trim(),
-    sms_template: map.sms_template ?? d.sms_template,
     customer_sms_enabled: parseBool(
       map.customer_sms_enabled,
       d.customer_sms_enabled,
@@ -67,7 +66,6 @@ export async function saveSettings(input: AppSettings): Promise<AppSettings> {
     ["working_hours_start", input.working_hours_start],
     ["working_hours_end", input.working_hours_end],
     ["telegram_group_chat_id", input.telegram_group_chat_id],
-    ["sms_template", input.sms_template],
     ["customer_sms_enabled", String(input.customer_sms_enabled)],
   ];
   for (const [settingKey, settingValue] of entries) {
@@ -81,6 +79,7 @@ export async function saveSettings(input: AppSettings): Promise<AppSettings> {
     "after_hours_enabled",
     "after_hours_notify_internal",
     "after_hours_delay_sms",
+    "sms_template",
   ]) {
     await sql.query(`DELETE FROM application_settings WHERE "key" = $1`, [
       legacyKey,

@@ -8,7 +8,5 @@ export const DEFAULT_SETTINGS: AppSettings = {
   working_hours_start: '08:00',
   working_hours_end: '17:00',
   telegram_group_chat_id: '',
-  sms_template:
-    'Hi {{first_name}}, thanks for your order at Tacoma Truck Parts! A team member will reach out shortly about your {{product_count}} item(s) totaling {{total}}.',
   customer_sms_enabled: true,
 };

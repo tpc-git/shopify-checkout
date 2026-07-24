@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { TelegramService } from '@/lib/services/telegram';
 import { QuoService } from '@/lib/services/quo';
-import { NotificationService } from '@/lib/services/notification';
+import { NotificationService, BASE_SMS_TEMPLATE } from '@/lib/services/notification';
 import { getAdminAccessToken, _resetAdminTokenCache } from '@/lib/services/shopify';
 import { DEFAULT_SETTINGS } from '@/lib/settings-defaults';
 import { toE164 } from '@/lib/util';
@@ -266,11 +266,11 @@ describe('NotificationService formatting', () => {
     expect(msg).toContain('[Open checkout](https://tacoma-truckparts.com/recover)');
   });
 
-  it('renders the SMS template variables', () => {
-    const out = svc.renderSms(DEFAULT_SETTINGS.sms_template, ctx);
-    expect(out).toContain('Hi John,');
-    expect(out).toContain('2 item(s)');
-    expect(out).toContain('$5,249.97');
+  it('renders the base SMS template with first_name', () => {
+    const out = svc.renderSms(BASE_SMS_TEMPLATE, ctx);
+    expect(out).toBe(
+      "Hello John, it's Tacoma Parts Corporation. You were checking out some truck parts on our website but didn’t place the order. Do you have any questions or need any help?"
+    );
   });
 
   it('title-cases first_name and falls back to "there" when missing', () => {
@@ -288,17 +288,28 @@ describe('NotificationService formatting', () => {
 
 describe('NotificationService customer SMS', () => {
   let fetchMock: ReturnType<typeof vi.fn>;
+  const SAVED = { ...process.env };
 
   beforeEach(() => {
-    fetchMock = vi.fn(
-      async () =>
-        new Response(JSON.stringify({ data: { id: 'msg_99', status: 'queued' } }), { status: 202 })
-    );
+    process.env = { ...SAVED };
+    delete process.env.OPENAI_API_KEY;
+    delete process.env.SMS_OVERRIDE_TO;
+    fetchMock = vi.fn(async (url: string) => {
+      if (String(url).includes('api.openai.com')) {
+        return new Response(JSON.stringify({ error: 'unused' }), { status: 500 });
+      }
+      return new Response(JSON.stringify({ data: { id: 'msg_99', status: 'queued' } }), {
+        status: 202,
+      });
+    });
     vi.stubGlobal('fetch', fetchMock);
   });
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    process.env = { ...SAVED };
+  });
 
-  it('sends Quo SMS with rendered template body (no media)', async () => {
+  it('falls back to base template when OpenAI is unavailable', async () => {
     const quo = new QuoService({
       apiKey: 'quo-key',
       fromNumber: '+12065550000',
@@ -313,10 +324,41 @@ describe('NotificationService customer SMS', () => {
     const body = JSON.parse((init as RequestInit).body as string);
     expect(body.to).toEqual(['+15555550123']);
     expect(body.from).toBe('+12065550000');
-    expect(body.content).toContain('Hi John,');
-    expect(body.content).toContain('2 item(s)');
+    expect(body.content).toContain('Hello John,');
+    expect(body.content).toContain("it's Tacoma Parts Corporation");
+    expect(body.content).toContain('some truck parts');
     expect(body.mediaUrl).toBeUndefined();
     expect(body.MediaUrl).toBeUndefined();
+  });
+
+  it('sends OpenAI-generated body when personalization succeeds', async () => {
+    process.env.OPENAI_API_KEY = 'sk-test';
+    const personalized =
+      "Hi John! I noticed you were looking at bumper parts for your truck but didn't finish your order. Any questions?";
+    fetchMock.mockImplementation(async (url: string) => {
+      if (String(url).includes('api.openai.com')) {
+        return new Response(
+          JSON.stringify({ choices: [{ message: { content: personalized } }] }),
+          { status: 200 }
+        );
+      }
+      return new Response(JSON.stringify({ data: { id: 'msg_99', status: 'queued' } }), {
+        status: 202,
+      });
+    });
+
+    const quo = new QuoService({
+      apiKey: 'quo-key',
+      fromNumber: '+12065550000',
+    });
+    const svc = new NotificationService(new TelegramService(''), quo);
+    const ok = await svc.sendCustomerSms(ctx, { ...DEFAULT_SETTINGS, customer_sms_enabled: true });
+    expect(ok).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const quoCall = fetchMock.mock.calls.find(([u]) => String(u).includes('api.quo.com'));
+    expect(quoCall).toBeTruthy();
+    const body = JSON.parse((quoCall![1] as RequestInit).body as string);
+    expect(body.content).toBe(personalized);
   });
 
   it('redirects delivery to SMS_OVERRIDE_TO when set', async () => {
@@ -330,7 +372,6 @@ describe('NotificationService customer SMS', () => {
     expect(ok).toBe(true);
     const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
     expect(body.to).toEqual(['+19737766152']);
-    delete process.env.SMS_OVERRIDE_TO;
   });
 
   it('skips send when customer SMS is disabled', async () => {

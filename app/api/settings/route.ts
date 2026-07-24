@@ -59,7 +59,6 @@ export async function PUT(req: Request): Promise<Response> {
     working_hours_start: start,
     working_hours_end: end,
     telegram_group_chat_id: groupChatId,
-    sms_template: typeof body.sms_template === 'string' ? body.sms_template : d.sms_template,
     customer_sms_enabled: asBool(body.customer_sms_enabled, d.customer_sms_enabled),
   };
 
